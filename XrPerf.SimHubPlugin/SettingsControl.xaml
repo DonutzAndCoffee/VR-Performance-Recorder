@@ -1,0 +1,104 @@
+<UserControl x:Class="XrPerf.SimHubPlugin.SettingsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="10">
+        <GroupBox Header="Recorder" Padding="8">
+            <StackPanel>
+                <Border x:Name="PnlNotRunning" Background="#33FF9800" BorderBrush="#FFFF9800" BorderThickness="1"
+                        Padding="8" Margin="0,0,0,8" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock TextWrapping="Wrap" Foreground="White"
+                                   Text="openXRTK Graph is not running. Nothing will be recorded until it is started." />
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <Button x:Name="BtnLaunch" Content="Start openXRTK Graph" Width="170" Click="BtnLaunch_Click" />
+                            <TextBlock x:Name="TxtLaunchHint" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="Gray"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <TextBlock x:Name="TxtStatus" Text="-" FontWeight="Bold" Margin="0,0,0,6" />
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Start" Width="90" Margin="0,0,6,0" Click="BtnStart_Click" />
+                    <Button Content="Stop" Width="90" Margin="0,0,6,0" Click="BtnStop_Click" />
+                    <Button Content="Open last" Width="90" Click="BtnOpenLast_Click" />
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Key bindings" Padding="8" Margin="0,8,0,0">
+            <StackPanel>
+                <ui:ControlsEditor FriendlyName="Start recording" Width="500" HorizontalAlignment="Left"
+                                   ActionName="XrPerfPlugin.XrPerfStart" Margin="0,0,0,5"/>
+                <ui:ControlsEditor FriendlyName="Stop recording" Width="500" HorizontalAlignment="Left"
+                                   ActionName="XrPerfPlugin.XrPerfStop" Margin="0,0,0,5"/>
+                <ui:ControlsEditor FriendlyName="Start / Stop recording" Width="500" HorizontalAlignment="Left"
+                                   ActionName="XrPerfPlugin.XrPerfToggle" Margin="0,0,0,5"/>
+                <ui:ControlsEditor FriendlyName="Set marker (next lap)" Width="500" HorizontalAlignment="Left"
+                                   ActionName="XrPerfPlugin.XrPerfMarker" Margin="0,0,0,5"/>
+                <ui:ControlsEditor FriendlyName="Open last session" Width="500" HorizontalAlignment="Left"
+                                   ActionName="XrPerfPlugin.XrPerfOpenLastSession" Margin="0,0,0,5"/>
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Automation" Padding="8" Margin="0,8,0,0">
+            <StackPanel>
+                <CheckBox x:Name="ChkAutoStart" Content="Start recording when a game session starts" Margin="0,2" />
+                <CheckBox x:Name="ChkAutoStop" Content="Stop recording when the game session ends" Margin="0,2" />
+                <CheckBox x:Name="ChkLaps" Content="Send lap markers" Margin="0,2" />
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,2">
+                    <TextBlock Text="Resolution (one row every)" VerticalAlignment="Center" Width="180" />
+                    <ComboBox x:Name="CmbInterval" Width="120">
+                        <ComboBoxItem Tag="1000" Content="1 s (OXRTK)" />
+                        <ComboBoxItem Tag="500" Content="500 ms" />
+                        <ComboBoxItem Tag="250" Content="250 ms" />
+                        <ComboBoxItem Tag="100" Content="100 ms" />
+                    </ComboBox>
+                </StackPanel>
+                <CheckBox x:Name="ChkRawFrames" Content="Additionally record every single frame (_frames.csv)" Margin="0,2" />
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Session context" Padding="8" Margin="0,8,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="140" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Label template" VerticalAlignment="Center" />
+                <TextBox x:Name="TxtLabel" Grid.Column="1" Margin="0,2" ToolTip="Placeholders: {Game} {Track} {Car} {SessionType}" />
+                <TextBlock Text="VR resolution" Grid.Row="1" VerticalAlignment="Center" />
+                <TextBox x:Name="TxtResolution" Grid.Row="1" Grid.Column="1" Margin="0,2" />
+                <TextBlock Text="Anti-aliasing" Grid.Row="2" VerticalAlignment="Center" />
+                <TextBox x:Name="TxtAa" Grid.Row="2" Grid.Column="1" Margin="0,2" />
+                <TextBlock Text="Notes" Grid.Row="3" VerticalAlignment="Center" />
+                <TextBox x:Name="TxtNotes" Grid.Row="3" Grid.Column="1" Margin="0,2" />
+            </Grid>
+        </GroupBox>
+
+        <Button Content="Save settings" Width="120" HorizontalAlignment="Left" Margin="0,8,0,0" Click="BtnSave_Click" />
+
+        <GroupBox Header="Recorded sessions" Padding="8" Margin="0,8,0,0">
+            <StackPanel>
+                <Button Content="Refresh" Width="90" HorizontalAlignment="Left" Click="BtnRefresh_Click" />
+                <ListView x:Name="LstSessions" Height="220" Margin="0,6,0,0" MouseDoubleClick="LstSessions_DoubleClick">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Start" Width="140" DisplayMemberBinding="{Binding StartTime, StringFormat=g}" />
+                            <GridViewColumn Header="Label" Width="220" DisplayMemberBinding="{Binding Label}" />
+                            <GridViewColumn Header="App" Width="120" DisplayMemberBinding="{Binding AppName}" />
+                            <GridViewColumn Header="Duration (s)" Width="80" DisplayMemberBinding="{Binding DurationSeconds, StringFormat=F0}" />
+                            <GridViewColumn Header="Avg FPS" Width="70" DisplayMemberBinding="{Binding AverageFps, StringFormat=F1}" />
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+                <TextBlock Text="Double-click opens the session in openXRTK Graph." Foreground="Gray" Margin="0,4,0,0" />
+            </StackPanel>
+        </GroupBox>
+    </StackPanel>
+    </ScrollViewer>
+</UserControl>

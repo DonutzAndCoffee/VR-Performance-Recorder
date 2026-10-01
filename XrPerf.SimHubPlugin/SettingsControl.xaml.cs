@@ -1,0 +1,102 @@
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using XrPerf.Contracts;
+
+namespace XrPerf.SimHubPlugin
+{
+    public partial class SettingsControl : UserControl
+    {
+        private readonly XrPerfPlugin _plugin;
+
+        public SettingsControl(XrPerfPlugin plugin)
+        {
+            InitializeComponent();
+            _plugin = plugin;
+
+            var s = plugin.Settings;
+            ChkAutoStart.IsChecked = s.AutoStartOnSession;
+            ChkAutoStop.IsChecked = s.AutoStopOnSessionEnd;
+            ChkLaps.IsChecked = s.TrackLaps;
+            ChkRawFrames.IsChecked = s.RawFrames;
+            CmbInterval.SelectedIndex = 0;
+            for (int i = 0; i < CmbInterval.Items.Count; i++)
+                if (CmbInterval.Items[i] is ComboBoxItem item && (string)item.Tag == s.RowIntervalMs.ToString())
+                    CmbInterval.SelectedIndex = i;
+            TxtLabel.Text = s.LabelTemplate;
+            TxtResolution.Text = s.Resolution;
+            TxtAa.Text = s.AntiAliasing;
+            TxtNotes.Text = s.Notes;
+
+            Loaded += (_, __) => { _plugin.StatusChanged += OnStatusChanged; UpdateStatus(); };
+            Unloaded += (_, __) => _plugin.StatusChanged -= OnStatusChanged;
+        }
+
+        private void OnStatusChanged() => Dispatcher.BeginInvoke(new System.Action(UpdateStatus));
+
+        private void UpdateStatus()
+        {
+            var st = _plugin.Status;
+            bool reachable = _plugin.RecorderReachable;
+            PnlNotRunning.Visibility = reachable ? Visibility.Collapsed : Visibility.Visible;
+            if (!reachable)
+            {
+                bool known = XrPerfPlugin.FindAppPath() != null;
+                BtnLaunch.IsEnabled = known;
+                TxtLaunchHint.Text = known ? string.Empty : "Start openXRTK Graph once manually so its location is known.";
+            }
+
+            if (!reachable)
+                TxtStatus.Text = "openXRTK Graph is not running.";
+            else if (st.IsRecording)
+                TxtStatus.Text = $"Recording {st.RecordingSeconds:F0}s - {st.AppName} - {st.CurrentFps:F1} FPS - lap {st.CurrentLap}";
+            else
+                TxtStatus.Text = st.LayerConnected ? $"Idle - layer connected ({st.AppName}, {st.RuntimeName})" : "Idle - no OpenXR app detected";
+        }
+
+        private void BtnStart_Click(object sender, RoutedEventArgs e) => _plugin.StartRecording();
+
+        private void BtnLaunch_Click(object sender, RoutedEventArgs e)
+        {
+            if (_plugin.LaunchApp())
+            {
+                BtnLaunch.IsEnabled = false;
+                TxtLaunchHint.Text = "Starting…";
+            }
+            else
+            {
+                TxtLaunchHint.Text = "openXRTK Graph could not be started.";
+            }
+        }
+        private void BtnStop_Click(object sender, RoutedEventArgs e) => _plugin.StopRecording();
+        private void BtnOpenLast_Click(object sender, RoutedEventArgs e) => _plugin.OpenLastSession();
+
+        private void BtnSave_Click(object sender, RoutedEventArgs e)
+        {
+            var s = _plugin.Settings;
+            s.AutoStartOnSession = ChkAutoStart.IsChecked == true;
+            s.AutoStopOnSessionEnd = ChkAutoStop.IsChecked == true;
+            s.TrackLaps = ChkLaps.IsChecked == true;
+            s.RawFrames = ChkRawFrames.IsChecked == true;
+            if (CmbInterval.SelectedItem is ComboBoxItem sel && int.TryParse((string)sel.Tag, out var ms))
+                s.RowIntervalMs = ms;
+            s.LabelTemplate = TxtLabel.Text;
+            s.Resolution = TxtResolution.Text;
+            s.AntiAliasing = TxtAa.Text;
+            s.Notes = TxtNotes.Text;
+            _plugin.SaveSettings();
+        }
+
+        private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            LstSessions.ItemsSource = await Task.Run(() => _plugin.ListSessions());
+        }
+
+        private void LstSessions_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (LstSessions.SelectedItem is SessionSummary session)
+                _plugin.OpenSession(session.Path);
+        }
+    }
+}

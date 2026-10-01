@@ -1,11 +1,20 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using openXRTK_Graph.XrPerf;
+using XrPerf.Contracts;
 
 namespace openXRTK_Graph;
 
 public static class CompanionDataLoader
 {
+    private static readonly JsonSerializerOptions XrPerfJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     /// <summary>
     /// Tries to find and parse _openxrtk.json and _renderer*.json sidecar files
     /// next to the given CSV path. Returns null if neither file is found.
@@ -18,8 +27,9 @@ public static class CompanionDataLoader
         // Locate sidecar files next to the CSV
         string oxrPath = Path.Combine(dir, baseName + "_openxrtk.json");
         string? rendererPath = Directory.GetFiles(dir, baseName + "_renderer*.json").FirstOrDefault();
+        string xrPerfPath = Path.Combine(dir, baseName + CsvSchema.CompanionSuffix);
 
-        if (!File.Exists(oxrPath) && rendererPath is null)
+        if (!File.Exists(oxrPath) && rendererPath is null && !File.Exists(xrPerfPath))
             return null;
 
         var meta = new SessionMetadata();
@@ -76,6 +86,29 @@ public static class CompanionDataLoader
                 }
             }
             catch { }
+        }
+
+        if (File.Exists(xrPerfPath))
+        {
+            try
+            {
+                var session = JsonSerializer.Deserialize<SessionFile>(File.ReadAllText(xrPerfPath), XrPerfJsonOptions);
+                if (session is not null)
+                {
+                    meta.XrPerfSession = session;
+                    if (string.IsNullOrEmpty(meta.RunningApp))
+                        meta.RunningApp = session.Layer?.AppName ?? "";
+                    if (meta.RecordedAt == default)
+                        meta.RecordedAt = session.RecordedAt;
+                    if (meta.ResolutionWidth is null && session.Layer is { SwapchainWidth: > 0 } layer)
+                    {
+                        meta.ResolutionWidth = (int)layer.SwapchainWidth;
+                        meta.ResolutionHeight = (int)layer.SwapchainHeight;
+                    }
+                }
+            }
+            catch (JsonException) { }
+            catch (IOException) { }
         }
 
         return meta;

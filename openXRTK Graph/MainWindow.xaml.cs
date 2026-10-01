@@ -14,11 +14,93 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        UpdateLayerUi();
+        UpdateSimHubUi();
+    }
+
+    private void UpdateSimHubUi()
+    {
+        var dir = XrPerf.SimHubPluginInstaller.FindSimHubDirectory();
+        BtnSimHubPlugin.IsEnabled = dir != null && XrPerf.SimHubPluginInstaller.BundleAvailable;
+        var upToDate = dir == null ? null : XrPerf.SimHubPluginInstaller.IsUpToDate(dir);
+        BtnSimHubPlugin.Content = upToDate switch
+        {
+            true => "SimHub Plugin ✓",
+            false => "Update SimHub Plugin",
+            null => "Install SimHub Plugin",
+        };
+        BtnSimHubPlugin.ToolTip = dir == null ? "SimHub installation not found." :
+            !XrPerf.SimHubPluginInstaller.BundleAvailable ? "Plugin files not bundled with this build." :
+            $"Copies the XrPerf plugin to {dir}";
+    }
+
+    private void BtnSimHubPlugin_Click(object sender, RoutedEventArgs e)
+    {
+        var dir = XrPerf.SimHubPluginInstaller.FindSimHubDirectory();
+        if (dir == null) return;
+
+        while (XrPerf.SimHubPluginInstaller.IsSimHubRunning())
+        {
+            if (MessageBox.Show("Please close SimHub first, then click OK.", "SimHub Plugin",
+                    MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK)
+                return;
+        }
+
+        if (XrPerf.SimHubPluginInstaller.Install(dir))
+            MessageBox.Show("Plugin installed. Start SimHub and enable \"XrPerf Recorder\" when prompted.",
+                "SimHub Plugin", MessageBoxButton.OK, MessageBoxImage.Information);
+        else
+            MessageBox.Show("The plugin was not installed (administrator approval cancelled or copy failed).",
+                "SimHub Plugin", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+        UpdateSimHubUi();
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        // Initialize
+        UpdateLayerUi();
+    }
+
+    private void UpdateLayerUi()
+    {
+        var (state, _) = XrPerf.LayerManager.GetState();
+        (TxtLayerState.Text, TxtLayerState.Foreground) = state switch
+        {
+            XrPerf.LayerManager.LayerState.Enabled => ("Active", System.Windows.Media.Brushes.LimeGreen),
+            XrPerf.LayerManager.LayerState.Disabled => ("Disabled", System.Windows.Media.Brushes.Orange),
+            XrPerf.LayerManager.LayerState.Missing => ("Files missing", System.Windows.Media.Brushes.OrangeRed),
+            _ => ("Not installed", System.Windows.Media.Brushes.Gray),
+        };
+
+        bool registered = state != XrPerf.LayerManager.LayerState.NotInstalled;
+        BtnLayerInstall.Content = registered ? "Reinstall" : "Install";
+        BtnLayerInstall.IsEnabled = XrPerf.LayerManager.BundledLayerAvailable;
+        BtnLayerToggle.IsEnabled = state is XrPerf.LayerManager.LayerState.Enabled or XrPerf.LayerManager.LayerState.Disabled;
+        BtnLayerToggle.Content = state == XrPerf.LayerManager.LayerState.Disabled ? "Enable" : "Disable";
+        BtnLayerUninstall.IsEnabled = registered;
+
+        TxtLayerState.ToolTip = string.Join(Environment.NewLine,
+            XrPerf.LayerManager.ListLayers().Select(l => $"[{(l.Enabled ? "on " : "off")}] {l.Path}")
+                .DefaultIfEmpty("No implicit OpenXR layers registered."));
+    }
+
+    private void RunLayerAction(Func<bool> action)
+    {
+        if (!action())
+            MessageBox.Show("The change was not applied (administrator approval cancelled or failed).",
+                "Perf Layer", MessageBoxButton.OK, MessageBoxImage.Warning);
+        UpdateLayerUi();
+    }
+
+    private void BtnLayerInstall_Click(object sender, RoutedEventArgs e) => RunLayerAction(XrPerf.LayerManager.Install);
+
+    private void BtnLayerUninstall_Click(object sender, RoutedEventArgs e) => RunLayerAction(XrPerf.LayerManager.Uninstall);
+
+    private void BtnLayerToggle_Click(object sender, RoutedEventArgs e)
+    {
+        var (state, path) = XrPerf.LayerManager.GetState();
+        if (path == null) return;
+        RunLayerAction(() => XrPerf.LayerManager.SetEnabled(path, state == XrPerf.LayerManager.LayerState.Disabled));
     }
 
     private void BtnOpen_Click(object sender, RoutedEventArgs e)
@@ -32,17 +114,22 @@ public partial class MainWindow : Window
 
         if (dlg.ShowDialog() != true) return;
 
+        LoadFile(dlg.FileName);
+    }
+
+    public void LoadFile(string fileName)
+    {
         try
         {
-            _data = CsvParser.Parse(dlg.FileName);
+            _data = CsvParser.Parse(fileName);
             if (_data.Count == 0)
             {
                 MessageBox.Show("The file contained no valid data rows.", "Empty File", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            _meta = CompanionDataLoader.TryLoad(dlg.FileName);
-            TxtFilePath.Text = System.IO.Path.GetFileName(dlg.FileName);
+            _meta = CompanionDataLoader.TryLoad(fileName);
+            TxtFilePath.Text = System.IO.Path.GetFileName(fileName);
             UpdateStats();
             UpdateCharts();
         }

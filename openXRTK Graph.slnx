@@ -1,3 +1,8 @@
 <Solution>
   <Project Path="openXRTK Graph/openXRTK Graph.csproj" />
+  <Project Path="XrPerf.Contracts/XrPerf.Contracts.csproj" />
+  <Project Path="XrPerf.SimHubPlugin/XrPerf.SimHubPlugin.csproj" />
+  <Project Path="XrPerfLayer/XrPerfLayer.vcxproj" Id="6b7c2e1a-4f3d-4c8b-9a51-2d7e0f3a9c11">
+    <Platform Solution="*|Any CPU" Project="x64" />
+  </Project>
 </Solution>

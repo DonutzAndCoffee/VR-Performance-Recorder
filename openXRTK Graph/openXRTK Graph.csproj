@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -12,5 +12,24 @@
   <ItemGroup>
     <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\XrPerf.Contracts\XrPerf.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\bin\x64\Release\XrPerfLayer.dll;..\bin\x64\Release\XrPerfLayer.json" Condition="Exists('..\bin\x64\Release\XrPerfLayer.dll')" Link="XrPerfLayer\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\XrPerf.SimHubPlugin\XrPerf.SimHubPlugin.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+
+  <Target Name="BundleSimHubPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <SimHubPluginFile Include="..\XrPerf.SimHubPlugin\bin\$(Configuration)\net48\XrPerf.SimHubPlugin.dll;..\XrPerf.SimHubPlugin\bin\$(Configuration)\net48\XrPerf.Contracts.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(SimHubPluginFile)" DestinationFolder="$(OutDir)SimHubPlugin" SkipUnchangedFiles="true" Condition="Exists('%(FullPath)')" />
+  </Target>
 
 </Project>

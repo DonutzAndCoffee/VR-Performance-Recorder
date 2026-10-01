@@ -1,3 +1,5 @@
+using openXRTK_Graph.XrPerf;
+
 namespace openXRTK_Graph;
 
 public class SessionMetadata
@@ -18,6 +20,9 @@ public class SessionMetadata
     // From renderer JSON (e.g. iRacing rendererDX11OpenXR.ini)
     public string? GameSettingsFile { get; set; }
     public Dictionary<string, Dictionary<string, string>> GameSettings { get; set; } = [];
+
+    // From _xrperf.json (XrPerf recorder: label, SimHub context, layer info, system info, laps)
+    public SessionFile? XrPerfSession { get; set; }
 
     public string? GetGameSetting(string section, string key)
     {
