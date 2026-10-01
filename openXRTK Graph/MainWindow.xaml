@@ -1,0 +1,288 @@
+﻿<Window x:Class="openXRTK_Graph.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:openXRTK_Graph"
+        xmlns:oxy="http://oxyplot.org/wpf"
+        mc:Ignorable="d"
+        Title="OpenXR Toolkit Statistics Viewer"
+        Height="750" Width="1100"
+        Background="#111111" Foreground="#DDDDDD">
+
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#2A2A2A"/>
+            <Setter Property="Foreground" Value="#DDDDDD"/>
+            <Setter Property="BorderBrush" Value="#444444"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#3A3A3A"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#1A6AAA"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#555555"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="#111111"/>
+            <Setter Property="BorderBrush" Value="#333333"/>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="Foreground" Value="#BBBBBB"/>
+            <Setter Property="BorderBrush" Value="#333333"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border Name="Border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1,1,1,0" CornerRadius="3,3,0,0"
+                                Margin="2,2,2,0" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter x:Name="ContentSite"
+                                              VerticalAlignment="Center" HorizontalAlignment="Center"
+                                              ContentSource="Header"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#2A2A2A"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#252525"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="#1A1A1A" BorderBrush="#333333" BorderThickness="0,0,0,1" Padding="10,8">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="BtnOpen" Content="📂  Open CSV…" Click="BtnOpen_Click" FontSize="13"/>
+                <TextBlock x:Name="TxtFilePath" Margin="16,0,0,0" VerticalAlignment="Center"
+                           FontSize="11" Foreground="#888888" Text="No file loaded"/>
+                <Button x:Name="BtnStartLog" Content="● Start Live Log" Click="BtnStartLog_Click" Margin="16,0,0,0" FontSize="13"/>
+                <Button x:Name="BtnStopLog" Content="■ Stop Live Log" Click="BtnStopLog_Click" Margin="6,0,0,0" FontSize="13" IsEnabled="False"/>
+                <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="#AAAAAA" Text="Interval:"/>
+                <ComboBox x:Name="CmbInterval" Width="80" Margin="6,0,0,0" VerticalAlignment="Center" SelectedIndex="1" SelectionChanged="CmbInterval_SelectionChanged">
+                    <ComboBoxItem Tag="100">100 ms</ComboBoxItem>
+                    <ComboBoxItem Tag="200">200 ms</ComboBoxItem>
+                    <ComboBoxItem Tag="500">500 ms</ComboBoxItem>
+                    <ComboBoxItem Tag="1000">1000 ms</ComboBoxItem>
+                    <ComboBoxItem Tag="2000">2000 ms</ComboBoxItem>
+                </ComboBox>
+                <Border Width="1" Background="#333333" Margin="16,0" VerticalAlignment="Stretch"/>
+                <Button x:Name="BtnCompare" Content="⚖  Compare Sessions…" Click="BtnCompare_Click" FontSize="13"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Stats summary bar -->
+        <Border Grid.Row="1" Background="#161616" BorderBrush="#333333" BorderThickness="0,0,0,1" Padding="14,6">
+            <StackPanel Orientation="Horizontal" x:Name="StatsPanel" Visibility="Collapsed">
+                <TextBlock x:Name="TxtSamples"  Margin="0,0,24,0" FontSize="11"/>
+                <TextBlock x:Name="TxtFpsAvg"   Margin="0,0,24,0" FontSize="11"/>
+                <TextBlock x:Name="TxtFpsMin"   Margin="0,0,24,0" FontSize="11"/>
+                <TextBlock x:Name="TxtFpsMax"   Margin="0,0,24,0" FontSize="11"/>
+                <TextBlock x:Name="TxtGpuAvg"   Margin="0,0,24,0" FontSize="11"/>
+                <TextBlock x:Name="TxtCpuAvg"   Margin="0,0,24,0" FontSize="11"/>
+                <TextBlock x:Name="TxtVramAvg"  Margin="0,0,0,0"  FontSize="11"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Charts -->
+        <TabControl Grid.Row="2" x:Name="TabMain" Background="#111111" Margin="4">
+            <TabItem Header="Frametime Distribution">
+                <Grid Background="#111111">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="300"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="5"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Padding="4">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="CPU Frametime Distribution" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#AAAAAA" Margin="4,4,0,2"/>
+                                <TextBlock Grid.Row="0" Text="Percentage of time per frametime (more left is better)"
+                                           FontSize="10" Foreground="#666666" Margin="4,22,0,0"/>
+                                <oxy:PlotView Grid.Row="1" x:Name="ChartCpuDist" Background="#141414"/>
+                            </Grid>
+                        </Border>
+                        <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="#222222"/>
+                        <Border Grid.Row="2" Padding="4">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="GPU Frametime Distribution" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#AAAAAA" Margin="4,4,0,2"/>
+                                <TextBlock Grid.Row="0" Text="Percentage of time per frametime (more left is better)"
+                                           FontSize="10" Foreground="#666666" Margin="4,22,0,0"/>
+                                <oxy:PlotView Grid.Row="1" x:Name="ChartGpuDist" Background="#141414"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                    <GridSplitter Grid.Column="1" Width="5" VerticalAlignment="Stretch" Background="#222222"/>
+                    <Border Grid.Column="2" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="1,0,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                            <TextBlock x:Name="TxtAnalysisDist" TextWrapping="Wrap" FontFamily="Consolas"
+                                       FontSize="11" Foreground="#BBBBBB" LineHeight="18"/>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="FPS over Time">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="300"/>
+                    </Grid.ColumnDefinitions>
+                    <oxy:PlotView Grid.Column="0" x:Name="ChartFps" Background="#141414" Margin="4"/>
+                    <GridSplitter Grid.Column="1" Width="5" VerticalAlignment="Stretch" Background="#222222"/>
+                    <Border Grid.Column="2" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="1,0,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                            <TextBlock x:Name="TxtAnalysisFps" TextWrapping="Wrap" FontFamily="Consolas"
+                                       FontSize="11" Foreground="#BBBBBB" LineHeight="18"/>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="FPS + Frametimes">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="300"/>
+                    </Grid.ColumnDefinitions>
+                    <oxy:PlotView Grid.Column="0" x:Name="ChartOverlay" Background="#141414" Margin="4"/>
+                    <GridSplitter Grid.Column="1" Width="5" VerticalAlignment="Stretch" Background="#222222"/>
+                    <Border Grid.Column="2" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="1,0,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                            <TextBlock x:Name="TxtAnalysisOverlay" TextWrapping="Wrap" FontFamily="Consolas"
+                                       FontSize="11" Foreground="#BBBBBB" LineHeight="18"/>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="CPU / GPU Frametime">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="300"/>
+                    </Grid.ColumnDefinitions>
+                    <oxy:PlotView Grid.Column="0" x:Name="ChartCpuGpu" Background="#141414" Margin="4"/>
+                    <GridSplitter Grid.Column="1" Width="5" VerticalAlignment="Stretch" Background="#222222"/>
+                    <Border Grid.Column="2" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="1,0,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                            <TextBlock x:Name="TxtAnalysisCpuGpu" TextWrapping="Wrap" FontFamily="Consolas"
+                                       FontSize="11" Foreground="#BBBBBB" LineHeight="18"/>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="VRAM">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="300"/>
+                    </Grid.ColumnDefinitions>
+                    <oxy:PlotView Grid.Column="0" x:Name="ChartVram" Background="#141414" Margin="4"/>
+                    <GridSplitter Grid.Column="1" Width="5" VerticalAlignment="Stretch" Background="#222222"/>
+                    <Border Grid.Column="2" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="1,0,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                            <TextBlock x:Name="TxtAnalysisVram" TextWrapping="Wrap" FontFamily="Consolas"
+                                       FontSize="11" Foreground="#BBBBBB" LineHeight="18"/>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="FPS Drop Attribution">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="#1A1A1A" BorderBrush="#333333" BorderThickness="0,0,0,1" Padding="10,8">
+                        <StackPanel Orientation="Vertical">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
+                                <TextBlock Text="Process Log:" VerticalAlignment="Center" Foreground="#AAAAAA"/>
+                                <TextBlock x:Name="TxtProcessLogPath" Margin="8,0,0,0" VerticalAlignment="Center"
+                                           FontSize="11" Foreground="#888888" Text="None loaded"/>
+                                <Button x:Name="BtnLoadProcessLog" Content="📋 Load Process Log" Click="BtnLoadProcessLog_Click" Margin="16,0,0,0" FontSize="11"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Target FPS:" VerticalAlignment="Center" Foreground="#AAAAAA" Width="80"/>
+                                <TextBox x:Name="TxtTargetFps" Width="60" Margin="4,0,0,0" Text="90" VerticalAlignment="Center"
+                                         Background="#2A2A2A" Foreground="#DDDDDD" BorderBrush="#444444" Padding="4"/>
+                                <TextBlock Text="Time Window (±s):" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="#AAAAAA"/>
+                                <TextBox x:Name="TxtTimeWindow" Width="60" Margin="4,0,0,0" Text="2" VerticalAlignment="Center"
+                                         Background="#2A2A2A" Foreground="#DDDDDD" BorderBrush="#444444" Padding="4"/>
+                                <TextBlock Text="Min CPU%:" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="#AAAAAA"/>
+                                <TextBox x:Name="TxtMinCpuPercent" Width="60" Margin="4,0,0,0" Text="0.5" VerticalAlignment="Center"
+                                         Background="#2A2A2A" Foreground="#DDDDDD" BorderBrush="#444444" Padding="4"/>
+                                <Button x:Name="BtnAnalyze" Content="⚡ Analyze FPS Drops" Click="BtnAnalyze_Click" Margin="16,0,0,0" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Row="1" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="0,1,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                            <TextBlock x:Name="TxtAnalysisDrops" TextWrapping="Wrap" FontFamily="Consolas"
+                                       FontSize="11" Foreground="#BBBBBB" LineHeight="18"/>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
