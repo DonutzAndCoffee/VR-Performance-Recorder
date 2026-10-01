@@ -133,6 +133,24 @@ public sealed class XrPerfControlServer : IDisposable
                     return ControlResponse.Ok();
                 }
 
+                case ControlProtocol.Commands.DeleteSessions:
+                {
+                    var paths = request.SessionPaths?.Where(p => !string.IsNullOrEmpty(p)).ToList() ?? [];
+                    string? current = _recorder.GetStatus().CurrentSessionPath;
+                    if (current is not null && paths.Any(p => string.Equals(Path.GetFullPath(p), Path.GetFullPath(current), StringComparison.OrdinalIgnoreCase)))
+                        return ControlResponse.Fail("The session currently being recorded cannot be deleted.");
+                    string root = Path.GetFullPath(_recorder.SessionsDirectory);
+                    foreach (var p in paths)
+                    {
+                        if (!string.Equals(Path.GetDirectoryName(Path.GetFullPath(p)), root.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                            return ControlResponse.Fail($"Not a session in the sessions directory: {p}");
+                    }
+                    foreach (var p in paths)
+                        foreach (var file in GetSessionFiles(p))
+                            File.Delete(file);
+                    return ControlResponse.Ok();
+                }
+
                 default:
                     return ControlResponse.Fail($"Unknown command '{request.Command}'.");
             }
@@ -149,10 +167,24 @@ public sealed class XrPerfControlServer : IDisposable
 
         return new DirectoryInfo(directory)
             .GetFiles("*.csv")
+            .Where(f => !f.Name.EndsWith(XrPerfRecorder.FramesSuffix, StringComparison.OrdinalIgnoreCase)
+                     && !f.Name.EndsWith(FramesAnalyzer.SummarySuffix, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(f => f.LastWriteTimeUtc)
             .Take(maxCount)
             .Select(ToSummary)
             .ToList();
+    }
+
+    /// <summary>Returns the session CSV plus all files sharing its base name (e.g. _frames.csv, _xrperf.json).</summary>
+    public static List<string> GetSessionFiles(string sessionCsvPath)
+    {
+        string? dir = Path.GetDirectoryName(sessionCsvPath);
+        string baseName = Path.GetFileNameWithoutExtension(sessionCsvPath);
+        var files = new List<string>();
+        if (File.Exists(sessionCsvPath)) files.Add(Path.GetFullPath(sessionCsvPath));
+        if (dir is null || !Directory.Exists(dir)) return files;
+        files.AddRange(Directory.GetFiles(dir, baseName + "_*").Select(Path.GetFullPath).OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
+        return files;
     }
 
     private static SessionSummary ToSummary(FileInfo csv)
@@ -162,6 +194,7 @@ public sealed class XrPerfControlServer : IDisposable
             Path = csv.FullName,
             AppName = Path.GetFileNameWithoutExtension(csv.Name),
             StartTime = csv.CreationTime,
+            Files = GetSessionFiles(csv.FullName),
         };
 
         string companion = XrPerfRecorder.GetCompanionPath(csv.FullName);

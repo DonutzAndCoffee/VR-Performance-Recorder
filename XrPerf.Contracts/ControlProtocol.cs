@@ -25,6 +25,8 @@ namespace XrPerf.Contracts
             public const string OpenSession = "OpenSession";
             /// <summary>Opens the comparison window with 2-3 sessions (<see cref="ControlRequest.SessionPaths"/>).</summary>
             public const string CompareSessions = "CompareSessions";
+            /// <summary>Deletes sessions (<see cref="ControlRequest.SessionPaths"/>) including all files belonging to them.</summary>
+            public const string DeleteSessions = "DeleteSessions";
         }
 
         public const int MaxCompareSessions = 3;
@@ -109,5 +111,10 @@ namespace XrPerf.Contracts
         [DataMember] public double DurationSeconds { get; set; }
         [DataMember] public double AverageFps { get; set; }
         [DataMember] public Dictionary<string, string> Context { get; set; }
+        /// <summary>All files belonging to this session (CSV, per-frame CSV, companion JSON files).</summary>
+        [DataMember(EmitDefaultValue = false)] public List<string> Files { get; set; }
+
+        public int FileCount => Files?.Count ?? 1;
+        public string FileNames => Files == null ? System.IO.Path.GetFileName(Path ?? string.Empty) : string.Join(Environment.NewLine, Files.ConvertAll(System.IO.Path.GetFileName));
     }
 }

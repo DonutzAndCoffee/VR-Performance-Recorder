@@ -1,4 +1,4 @@
-<UserControl x:Class="XrPerf.SimHubPlugin.SettingsControl"
+﻿<UserControl x:Class="XrPerf.SimHubPlugin.SettingsControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins">
@@ -27,6 +27,41 @@
             </StackPanel>
         </GroupBox>
 
+        <GroupBox Header="Recorded sessions" Padding="8" Margin="0,8,0,0">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Refresh" Width="90" Click="BtnRefresh_Click" />
+                    <Button x:Name="BtnCompare" Content="Compare selected" Width="130" Margin="6,0,0,0"
+                            IsEnabled="False" Click="BtnCompare_Click" />
+                    <Button x:Name="BtnDelete" Content="Delete selected" Width="120" Margin="6,0,0,0"
+                            IsEnabled="False" Click="BtnDelete_Click" />
+                </StackPanel>
+                <ListView x:Name="LstSessions" Height="220" Margin="0,6,0,0" SelectionMode="Extended"
+                          MouseDoubleClick="LstSessions_DoubleClick" SelectionChanged="LstSessions_SelectionChanged">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Start" Width="140" DisplayMemberBinding="{Binding StartTime, StringFormat=g}" />
+                            <GridViewColumn Header="Label" Width="220" DisplayMemberBinding="{Binding Label}" />
+                            <GridViewColumn Header="App" Width="120" DisplayMemberBinding="{Binding AppName}" />
+                            <GridViewColumn Header="Duration (s)" Width="80" DisplayMemberBinding="{Binding DurationSeconds, StringFormat=F0}" />
+                            <GridViewColumn Header="Avg FPS" Width="70" DisplayMemberBinding="{Binding AverageFps, StringFormat=F1}" />
+                            <GridViewColumn Header="Files" Width="50">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding FileCount}" ToolTip="{Binding FileNames}" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+                <TextBlock Text="Double-click opens the session in openXRTK Graph. Ctrl+click 2-3 sessions and press 'Compare selected' to compare them (oldest = A). 'Delete selected' removes the sessions including all their files (CSV, frames, JSON)."
+                           Foreground="Gray" Margin="0,4,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+        </GroupBox>
+
+        <Expander Header="Settings" IsExpanded="False" Margin="0,8,0,0">
+        <StackPanel>
         <GroupBox Header="Key bindings" Padding="8" Margin="0,8,0,0">
             <StackPanel>
                 <ui:ControlsEditor FriendlyName="Start recording" Width="500" HorizontalAlignment="Left"
@@ -83,30 +118,8 @@
         </GroupBox>
 
         <Button Content="Save settings" Width="120" HorizontalAlignment="Left" Margin="0,8,0,0" Click="BtnSave_Click" />
-
-        <GroupBox Header="Recorded sessions" Padding="8" Margin="0,8,0,0">
-            <StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <Button Content="Refresh" Width="90" Click="BtnRefresh_Click" />
-                    <Button x:Name="BtnCompare" Content="Compare selected" Width="130" Margin="6,0,0,0"
-                            IsEnabled="False" Click="BtnCompare_Click" />
-                </StackPanel>
-                <ListView x:Name="LstSessions" Height="220" Margin="0,6,0,0" SelectionMode="Extended"
-                          MouseDoubleClick="LstSessions_DoubleClick" SelectionChanged="LstSessions_SelectionChanged">
-                    <ListView.View>
-                        <GridView>
-                            <GridViewColumn Header="Start" Width="140" DisplayMemberBinding="{Binding StartTime, StringFormat=g}" />
-                            <GridViewColumn Header="Label" Width="220" DisplayMemberBinding="{Binding Label}" />
-                            <GridViewColumn Header="App" Width="120" DisplayMemberBinding="{Binding AppName}" />
-                            <GridViewColumn Header="Duration (s)" Width="80" DisplayMemberBinding="{Binding DurationSeconds, StringFormat=F0}" />
-                            <GridViewColumn Header="Avg FPS" Width="70" DisplayMemberBinding="{Binding AverageFps, StringFormat=F1}" />
-                        </GridView>
-                    </ListView.View>
-                </ListView>
-                <TextBlock Text="Double-click opens the session in openXRTK Graph. Ctrl+click 2-3 sessions and press 'Compare selected' to compare them (oldest = A)."
-                           Foreground="Gray" Margin="0,4,0,0" TextWrapping="Wrap" />
-            </StackPanel>
-        </GroupBox>
+        </StackPanel>
+        </Expander>
     </StackPanel>
     </ScrollViewer>
 </UserControl>

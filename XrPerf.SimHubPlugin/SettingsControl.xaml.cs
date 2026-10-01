@@ -30,8 +30,29 @@ namespace XrPerf.SimHubPlugin
             TxtAa.Text = s.AntiAliasing;
             TxtNotes.Text = s.Notes;
 
-            Loaded += (_, __) => { _plugin.StatusChanged += OnStatusChanged; UpdateStatus(); };
+            Loaded += (_, __) => { _plugin.StatusChanged += OnStatusChanged; UpdateStatus(); RefreshSessions(); };
             Unloaded += (_, __) => _plugin.StatusChanged -= OnStatusChanged;
+        }
+
+        private bool? _lastRecording;
+        private bool _lastReachable;
+        private string _lastSessionKey;
+        private bool _refreshing;
+        private bool _refreshPending;
+
+        private async void RefreshSessions()
+        {
+            if (_refreshing) { _refreshPending = true; return; }
+            _refreshing = true;
+            try
+            {
+                var sessions = await Task.Run(() => _plugin.ListSessions());
+                if (sessions.Count > 0 || _plugin.RecorderReachable)
+                    LstSessions.ItemsSource = sessions;
+            }
+            catch (System.Exception) { }
+            finally { _refreshing = false; }
+            if (_refreshPending) { _refreshPending = false; RefreshSessions(); }
         }
 
         private void OnStatusChanged() => Dispatcher.BeginInvoke(new System.Action(UpdateStatus));
@@ -40,6 +61,13 @@ namespace XrPerf.SimHubPlugin
         {
             var st = _plugin.Status;
             bool reachable = _plugin.RecorderReachable;
+            bool recording = reachable && st.IsRecording;
+            string sessionKey = reachable ? $"{recording}|{st.CurrentSessionPath}|{st.LastSessionPath}" : null;
+            if (_lastRecording.HasValue && (sessionKey != _lastSessionKey || _lastReachable != reachable))
+                RefreshSessions();
+            _lastSessionKey = sessionKey;
+            _lastRecording = recording;
+            _lastReachable = reachable;
             PnlNotRunning.Visibility = reachable ? Visibility.Collapsed : Visibility.Visible;
             if (!reachable)
             {
@@ -89,10 +117,7 @@ namespace XrPerf.SimHubPlugin
             _plugin.SaveSettings();
         }
 
-        private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
-        {
-            LstSessions.ItemsSource = await Task.Run(() => _plugin.ListSessions());
-        }
+        private void BtnRefresh_Click(object sender, RoutedEventArgs e) => RefreshSessions();
 
         private void LstSessions_DoubleClick(object sender, MouseButtonEventArgs e)
         {
@@ -104,6 +129,23 @@ namespace XrPerf.SimHubPlugin
         {
             int n = LstSessions.SelectedItems.Count;
             BtnCompare.IsEnabled = n >= 2 && n <= ControlProtocol.MaxCompareSessions;
+            BtnDelete.IsEnabled = n >= 1;
+        }
+
+        private async void BtnDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = LstSessions.SelectedItems.OfType<SessionSummary>().ToList();
+            if (selected.Count == 0) return;
+            int files = selected.Sum(s => s.FileCount);
+            if (MessageBox.Show($"Delete {selected.Count} session(s) with {files} file(s)?", "Delete sessions",
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
+
+            var paths = selected.Select(s => s.Path).ToList();
+            var error = await Task.Run(() => _plugin.DeleteSessions(paths));
+            if (error != null)
+                MessageBox.Show(error, "Delete sessions", MessageBoxButton.OK, MessageBoxImage.Error);
+            LstSessions.ItemsSource = await Task.Run(() => _plugin.ListSessions());
         }
 
         private void BtnCompare_Click(object sender, RoutedEventArgs e)

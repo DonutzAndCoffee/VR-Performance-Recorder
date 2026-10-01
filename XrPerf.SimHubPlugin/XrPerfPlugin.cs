@@ -168,6 +168,14 @@ namespace XrPerf.SimHubPlugin
             Fire(() => Send(new ControlRequest { Command = ControlProtocol.Commands.CompareSessions, SessionPaths = list }));
         }
 
+        /// <summary>Deletes the given sessions including all their files. Returns an error message or null on success.</summary>
+        public string DeleteSessions(IList<string> paths)
+        {
+            if (paths == null || paths.Count == 0) return null;
+            var response = _client.Send(new ControlRequest { Command = ControlProtocol.Commands.DeleteSessions, SessionPaths = new List<string>(paths) });
+            return response.Success ? null : (response.Error ?? "Deleting failed.");
+        }
+
         /// <summary>Compares the two most recent sessions (older = A, newer = B).</summary>
         public void CompareLastSessions()
         {
