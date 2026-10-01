@@ -264,8 +264,29 @@ XRAPI_ATTR XrResult XRAPI_CALL Hook_xrEndFrame(XrSession session, const XrFrameE
 	}
 	g_state.shm.Push(sample);
 
+	// Per-eye render resolution: use the projection view's imageRect, since apps (e.g. iRacing) may
+	// render both eyes side by side into a single, larger swapchain.
+	if (frameEndInfo && frameEndInfo->layers) {
+		for (uint32_t i = 0; i < frameEndInfo->layerCount; ++i) {
+			const XrCompositionLayerBaseHeader* layer = frameEndInfo->layers[i];
+			if (!layer || layer->type != XR_TYPE_COMPOSITION_LAYER_PROJECTION) {
+				continue;
+			}
+			const auto* proj = reinterpret_cast<const XrCompositionLayerProjection*>(layer);
+			if (proj->viewCount > 0 && proj->views) {
+				const XrExtent2Di& extent = proj->views[0].subImage.imageRect.extent;
+				if (extent.width > 0 && extent.height > 0) {
+					Header* header = g_state.shm.GetHeader();
+					header->swapchainWidth = static_cast<uint32_t>(extent.width);
+					header->swapchainHeight = static_cast<uint32_t>(extent.height);
+				}
+			}
+			break;
+		}
+	}
+
 	if (g_state.predictedDisplayPeriod > 0) {
-		g_state.shm.GetHeader()->displayRefreshRate = 1e9f / static_cast<float>(g_state.predictedDisplayPeriod);
+		g_state.shm.GetHeader()->displayRefreshRate
 	}
 	return result;
 }
