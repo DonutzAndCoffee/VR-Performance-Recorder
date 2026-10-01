@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:openXRTK_Graph"
         xmlns:oxy="http://oxyplot.org/wpf"
         mc:Ignorable="d"
-        Title="OpenXR Toolkit Statistics Viewer"
+        Title="VR Performance Recorder"
         Height="750" Width="1350" MinWidth="1350" MinHeight="750"
         Background="#111111" Foreground="#DDDDDD">
 

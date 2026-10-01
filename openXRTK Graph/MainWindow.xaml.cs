@@ -122,7 +122,7 @@ public partial class MainWindow : Window
     {
         var dlg = new OpenFileDialog
         {
-            Title = "Open OpenXR Toolkit Statistics CSV",
+            Title = "Open Performance CSV",
             Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
             CheckFileExists = true,
         };

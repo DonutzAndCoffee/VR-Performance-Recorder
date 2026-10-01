@@ -42,6 +42,10 @@
 	</Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\don.png" LogicalName="XrPerf.SimHubPlugin.don.png" />
+  </ItemGroup>
+
   <!-- Copying into the SimHub folder needs write access; opt in with -p:DeployToSimHub=true -->
   <Target Name="DeployToSimHub" AfterTargets="Build" Condition="'$(DeployToSimHub)' == 'true'">
 	<Exec Command="XCOPY /Y /R &quot;$(TargetDir)$(TargetName).dll&quot; &quot;$(SimHubDir)&quot;" />

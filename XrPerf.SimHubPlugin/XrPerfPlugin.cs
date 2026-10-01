@@ -9,16 +9,39 @@ using XrPerf.Contracts;
 
 namespace XrPerf.SimHubPlugin
 {
-    [PluginDescription("XrPerf - remote control for the unified OpenXR performance recorder")]
+    [PluginDescription("VR Performance Recorder - remote control for recording VR performance (OpenXR / OpenVR)")]
     [PluginAuthor("Don Utz")]
-    [PluginName("XrPerf Recorder")]
+    [PluginName("VR Performance Recorder")]
     public class XrPerfPlugin : IPlugin, IDataPlugin, IWPFSettingsV2
     {
         private const string SettingsKey = "XrPerfPlugin";
 
         public PluginManager PluginManager { get; set; }
-        public ImageSource PictureIcon => null;
-        public string LeftMenuTitle => "XrPerf Recorder";
+        public ImageSource PictureIcon => _icon ?? (_icon = LoadIcon());
+        private static ImageSource _icon;
+        public string LeftMenuTitle => "VR Performance Recorder";
+
+        private static ImageSource LoadIcon()
+        {
+            try
+            {
+                using (var stream = typeof(XrPerfPlugin).Assembly.GetManifestResourceStream("XrPerf.SimHubPlugin.don.png"))
+                {
+                    if (stream == null) return null;
+                    var image = new System.Windows.Media.Imaging.BitmapImage();
+                    image.BeginInit();
+                    image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    image.StreamSource = stream;
+                    image.EndInit();
+                    image.Freeze();
+                    return image;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
         public XrPerfPluginSettings Settings { get; private set; }
         public RecorderStatus Status { get; private set; } = new RecorderStatus();
@@ -158,7 +181,7 @@ namespace XrPerf.SimHubPlugin
             Fire(() => Send(new ControlRequest { Command = ControlProtocol.Commands.OpenSession, SessionPath = path }));
         }
 
-        /// <summary>Opens the comparison window in openXRTK Graph with 2-3 sessions (A, B, C in the given order).</summary>
+        /// <summary>Opens the comparison window in VR Performance Recorder with 2-3 sessions (A, B, C in the given order).</summary>
         public void CompareSessions(IList<string> paths)
         {
             if (paths == null || paths.Count < 2) return;
@@ -209,7 +232,7 @@ namespace XrPerf.SimHubPlugin
             }
         }
 
-        /// <summary>Starts openXRTK Graph. Returns false if its location is unknown.</summary>
+        /// <summary>Starts VR Performance Recorder. Returns false if its location is unknown.</summary>
         public bool LaunchApp()
         {
             var path = FindAppPath();

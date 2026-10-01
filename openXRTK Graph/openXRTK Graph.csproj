@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\XrPerf.SimHubPlugin\XrPerf.SimHubPlugin.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <UpToDateCheckInput Include="..\XrPerf.SimHubPlugin\bin\$(Configuration)\net48\XrPerf.SimHubPlugin.dll;..\XrPerf.SimHubPlugin\bin\$(Configuration)\net48\XrPerf.Contracts.dll" />
   </ItemGroup>
 
   <Target Name="BundleSimHubPlugin" AfterTargets="Build">

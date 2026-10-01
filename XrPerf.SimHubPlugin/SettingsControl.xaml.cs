@@ -73,11 +73,11 @@ namespace XrPerf.SimHubPlugin
             {
                 bool known = XrPerfPlugin.FindAppPath() != null;
                 BtnLaunch.IsEnabled = known;
-                TxtLaunchHint.Text = known ? string.Empty : "Start openXRTK Graph once manually so its location is known.";
+                TxtLaunchHint.Text = known ? string.Empty : "Start VR Performance Recorder once manually so its location is known.";
             }
 
             if (!reachable)
-                TxtStatus.Text = "openXRTK Graph is not running.";
+                TxtStatus.Text = "VR Performance Recorder is not running.";
             else if (st.IsRecording)
                 TxtStatus.Text = $"Recording {st.RecordingSeconds:F0}s - {st.AppName} - {st.CurrentFps:F1} FPS - lap {st.CurrentLap}";
             else
@@ -95,7 +95,7 @@ namespace XrPerf.SimHubPlugin
             }
             else
             {
-                TxtLaunchHint.Text = "openXRTK Graph could not be started.";
+                TxtLaunchHint.Text = "VR Performance Recorder could not be started.";
             }
         }
         private void BtnStop_Click(object sender, RoutedEventArgs e) => _plugin.StopRecording();

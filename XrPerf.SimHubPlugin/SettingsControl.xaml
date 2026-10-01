@@ -10,9 +10,9 @@
                         Padding="8" Margin="0,0,0,8" Visibility="Collapsed">
                     <StackPanel>
                         <TextBlock TextWrapping="Wrap" Foreground="White"
-                                   Text="openXRTK Graph is not running. Nothing will be recorded until it is started." />
+                                   Text="VR Performance Recorder is not running. Nothing will be recorded until it is started." />
                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                            <Button x:Name="BtnLaunch" Content="Start openXRTK Graph" Width="170" Click="BtnLaunch_Click" />
+                            <Button x:Name="BtnLaunch" Content="Start VR Performance Recorder" Width="200" Click="BtnLaunch_Click" />
                             <TextBlock x:Name="TxtLaunchHint" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="Gray"
                                        TextWrapping="Wrap" />
                         </StackPanel>
@@ -55,7 +55,7 @@
                         </GridView>
                     </ListView.View>
                 </ListView>
-                <TextBlock Text="Double-click opens the session in openXRTK Graph. Ctrl+click 2-3 sessions and press 'Compare selected' to compare them (oldest = A). 'Delete selected' removes the sessions including all their files (CSV, frames, JSON)."
+                <TextBlock Text="Double-click opens the session in VR Performance Recorder. Ctrl+click 2-3 sessions and press 'Compare selected' to compare them (oldest = A). 'Delete selected' removes the sessions including all their files (CSV, frames, JSON)."
                            Foreground="Gray" Margin="0,4,0,0" TextWrapping="Wrap" />
             </StackPanel>
         </GroupBox>
