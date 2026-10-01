@@ -18,6 +18,11 @@ namespace openXRTK_Graph
             base.OnStartup(e);
 
             Recorder = new XrPerfRecorder();
+            Recorder.RecordingStateChanged += recording =>
+            {
+                RecordingIndicator.Play(recording);
+                Dispatcher.BeginInvoke(() => (MainWindow as openXRTK_Graph.MainWindow)?.SetRecordingIndicator(recording));
+            };
             _controlServer = new XrPerfControlServer(Recorder);
             _controlServer.OpenSessionRequested += path => Dispatcher.BeginInvoke(() => OpenSession(path));
             _controlServer.CompareSessionsRequested += paths => Dispatcher.BeginInvoke(() => CompareSessions(paths));

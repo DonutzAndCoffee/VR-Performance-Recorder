@@ -58,6 +58,9 @@ public sealed class XrPerfRecorder : IDisposable
     /// <summary>Raised on the recorder thread once per second.</summary>
     public event Action<AggregatedRow?, SystemSample>? RowProduced;
 
+    /// <summary>Raised when recording starts (true) or stops (false).</summary>
+    public event Action<bool>? RecordingStateChanged;
+
     public XrPerfRecorder(string? sessionsDirectory = null)
     {
         SessionsDirectory = sessionsDirectory ?? DefaultSessionsDirectory;
@@ -93,6 +96,13 @@ public sealed class XrPerfRecorder : IDisposable
     }
 
     public string Start(string? label, IDictionary<string, string>? context, int rowIntervalMs = 0, bool rawFrames = false)
+    {
+        string path = StartCore(label, context, rowIntervalMs, rawFrames);
+        RecordingStateChanged?.Invoke(true);
+        return path;
+    }
+
+    private string StartCore(string? label, IDictionary<string, string>? context, int rowIntervalMs, bool rawFrames)
     {
         lock (_lock)
         {
@@ -140,7 +150,13 @@ public sealed class XrPerfRecorder : IDisposable
 
     public void Stop()
     {
-        lock (_lock) StopInternal();
+        bool wasRecording;
+        lock (_lock)
+        {
+            wasRecording = _csv is not null;
+            StopInternal();
+        }
+        if (wasRecording) RecordingStateChanged?.Invoke(false);
     }
 
     public void MarkLap(int lapNumber)

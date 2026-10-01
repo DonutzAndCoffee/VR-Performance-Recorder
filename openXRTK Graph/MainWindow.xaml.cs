@@ -14,8 +14,23 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ChkRecSound.IsChecked = RecordingIndicator.SoundEnabled;
+        SetRecordingIndicator(App.Recorder?.IsRecording ?? false);
         UpdateLayerUi();
         UpdateSimHubUi();
+    }
+
+    public void SetRecordingIndicator(bool recording)
+    {
+        TxtRecIndicator.Foreground = recording
+            ? System.Windows.Media.Brushes.Red
+            : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x55, 0x55, 0x55));
+    }
+
+    private void ChkRecSound_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        RecordingIndicator.SoundEnabled = ChkRecSound.IsChecked == true;
     }
 
     private void UpdateSimHubUi()
