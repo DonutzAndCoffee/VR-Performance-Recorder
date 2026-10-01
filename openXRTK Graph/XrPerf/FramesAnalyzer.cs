@@ -47,10 +47,38 @@ public static class FramesAnalyzer
             sb.Append(rows[0][col].PadRight(labelWidth));
             for (int r = 1; r < rows.Count; r++)
                 sb.Append((col < rows[r].Length ? rows[r][col] : "").PadLeft(12));
+            if (MetricDescriptions.TryGetValue(rows[0][col], out var desc))
+                sb.Append("    ").Append(desc);
             sb.AppendLine();
         }
+        sb.AppendLine();
+        sb.AppendLine("Columns: 'all' = whole recording, 'lap N' = only the frames of that lap.");
+        sb.AppendLine("Frametime = time between two frames. Lower is better; it should stay at or below the budget.");
+        sb.AppendLine("Percentiles: p95 = 13.9 ms means 95% of all frames were faster than 13.9 ms. The higher percentiles show the rare slow frames (stutter).");
         return sb.ToString();
     }
+
+    private static readonly Dictionary<string, string> MetricDescriptions = new()
+    {
+        ["scope"] = "Which part of the recording the column covers",
+        ["frames"] = "Number of frames analyzed",
+        ["avg frametime (ms)"] = "Average time between two displayed frames (not render time)",
+        ["p50 (ms)"] = "Median: half of the frames were faster than this",
+        ["p95 (ms)"] = "95% of frames were faster - typical worst case",
+        ["p99 (ms)"] = "99% of frames were faster - occasional hitches",
+        ["p99.9 (ms)"] = "99.9% of frames were faster - rare, noticeable stutters",
+        ["max (ms)"] = "Slowest single frame",
+        ["1% low fps"] = "FPS of the slowest 1% of frames (higher = smoother)",
+        ["budget (ms)"] = "Time available per frame at the refresh rate (1000 / Hz)",
+        ["missed frames"] = "Frames more than 5% over budget (e.g. >14.6 ms at 72 Hz); tiny timing jitter is ignored",
+        ["missed (%)"] = "Share of missed frames. With VSync a real miss usually shows as ~2x budget",
+        ["spike avg appCPU (us)"] = "Avg game CPU time in missed frames (1000 us = 1 ms)",
+        ["spike avg renderCPU (us)"] = "Avg render-thread CPU time in missed frames",
+        ["spike avg appGPU (us)"] = "Avg GPU time in missed frames - close to budget = GPU-bound",
+    };
+
+    /// <summary>A frame counts as missed above budget * this factor (filters measurement jitter).</summary>
+    private const double MissTolerance = 1.05;
 
     private static string BuildCsv(string framesCsvPath, double refreshRateHz)
     {
@@ -87,7 +115,7 @@ public static class FramesAnalyzer
         if (frames.Count == 0 || refreshRateHz <= 0) return "";
         double budget = 1000.0 / refreshRateHz;
         var ft = frames.Select(f => f.FrameTimeMs).OrderBy(v => v).ToArray();
-        double missedPct = frames.Count(f => f.FrameTimeMs > budget * 1.05) * 100.0 / ft.Length;
+        double missedPct = frames.Count(f => f.FrameTimeMs > budget * MissTolerance) * 100.0 / ft.Length;
         double p99 = Percentile(ft, 0.99);
 
         var sb = new StringBuilder();
@@ -123,7 +151,7 @@ public static class FramesAnalyzer
         if (ft.Length == 0) return;
 
         double p99 = Percentile(ft, 0.99);
-        var spikes = budgetMs > 0 ? frames.Where(f => f.FrameTimeMs > budgetMs).ToList() : new List<Frame>();
+        var spikes = budgetMs > 0 ? frames.Where(f => f.FrameTimeMs > budgetMs * MissTolerance).ToList() : new List<Frame>();
         var gpuSpikes = spikes.Where(f => f.GpuValid).ToList();
 
         string F(double v) => v.ToString("F3", c);
