@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -97,6 +98,21 @@ namespace XrPerf.SimHubPlugin
         {
             if (LstSessions.SelectedItem is SessionSummary session)
                 _plugin.OpenSession(session.Path);
+        }
+
+        private void LstSessions_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            int n = LstSessions.SelectedItems.Count;
+            BtnCompare.IsEnabled = n >= 2 && n <= ControlProtocol.MaxCompareSessions;
+        }
+
+        private void BtnCompare_Click(object sender, RoutedEventArgs e)
+        {
+            var paths = LstSessions.SelectedItems.OfType<SessionSummary>()
+                .OrderBy(s => s.StartTime)
+                .Select(s => s.Path)
+                .ToList();
+            _plugin.CompareSessions(paths);
         }
     }
 }

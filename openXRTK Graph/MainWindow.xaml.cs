@@ -220,16 +220,12 @@ public partial class MainWindow : Window
     {
         // Frametime Distribution tab – CPU lines
         ChartCpuDist.Model = ChartBuilder.BuildFrametimeDistribution(
-            _data, "CPU Frametime Distribution – App CPU / Render CPU", 0.2);
+            _data, "CPU Frametime Distribution – App CPU / Render CPU", 0.2, includeCpu: true, includeGpu: false);
 
         // Frametime Distribution tab – GPU lines
-        var gpuDist = ChartBuilder.BuildFrametimeDistribution(_data, "GPU Frametime Distribution – App GPU", 0.2);
-        // Keep only App GPU series for the GPU panel
-        var appGpuSeries = gpuDist.Series.LastOrDefault();
-        gpuDist.Series.Clear();
-        if (appGpuSeries is not null)
-            gpuDist.Series.Add(appGpuSeries);
-        ChartGpuDist.Model = gpuDist;
+        ChartGpuDist.Model = ChartBuilder.BuildFrametimeDistribution(
+            _data, "GPU Frametime Distribution – App GPU", 0.2, includeCpu: false, includeGpu: true);
+        HookDistributionSync();
 
         ChartFps.Model     = ChartBuilder.BuildFpsTimeSeries(_data);
         ChartOverlay.Model = ChartBuilder.BuildFpsAndFrametimeOverlay(_data);
@@ -241,6 +237,49 @@ public partial class MainWindow : Window
         TxtAnalysisOverlay.Text = AnalysisEngine.AnalyzeFpsAndFrametime(_data, _meta);
         TxtAnalysisCpuGpu.Text  = AnalysisEngine.AnalyzeCpuGpu(_data, _meta);
         TxtAnalysisVram.Text    = AnalysisEngine.AnalyzeVram(_data, _meta);
+    }
+
+    private bool _syncingDist;
+
+    private void HookDistributionSync()
+    {
+        if (ChartCpuDist.Model is not { } cpu || ChartGpuDist.Model is not { } gpu) return;
+
+        foreach (var pos in new[] { OxyPlot.Axes.AxisPosition.Bottom, OxyPlot.Axes.AxisPosition.Left })
+        {
+            var a = cpu.Axes.FirstOrDefault(x => x.Position == pos);
+            var b = gpu.Axes.FirstOrDefault(x => x.Position == pos);
+            if (a is null || b is null) continue;
+            a.AxisChanged += (_, _) => SyncAxis(a, b, gpu);
+            b.AxisChanged += (_, _) => SyncAxis(b, a, cpu);
+        }
+    }
+
+    private void SyncAxis(OxyPlot.Axes.Axis source, OxyPlot.Axes.Axis target, OxyPlot.PlotModel targetModel)
+    {
+        if (_syncingDist || ChkSyncDist.IsChecked != true) return;
+        _syncingDist = true;
+        try
+        {
+            target.Zoom(source.ActualMinimum, source.ActualMaximum);
+            targetModel.InvalidatePlot(false);
+        }
+        finally
+        {
+            _syncingDist = false;
+        }
+    }
+
+    private void ChkSyncDist_Changed(object sender, RoutedEventArgs e)
+    {
+        if (ChkSyncDist.IsChecked != true || ChartCpuDist?.Model is not { } cpu || ChartGpuDist?.Model is not { } gpu) return;
+
+        foreach (var a in cpu.Axes)
+        {
+            var b = gpu.Axes.FirstOrDefault(x => x.Position == a.Position);
+            if (b is not null)
+                SyncAxis(a, b, gpu);
+        }
     }
 
     private void BtnCompare_Click(object sender, RoutedEventArgs e)

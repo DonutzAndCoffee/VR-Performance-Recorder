@@ -20,6 +20,7 @@ namespace openXRTK_Graph
             Recorder = new XrPerfRecorder();
             _controlServer = new XrPerfControlServer(Recorder);
             _controlServer.OpenSessionRequested += path => Dispatcher.BeginInvoke(() => OpenSession(path));
+            _controlServer.CompareSessionsRequested += paths => Dispatcher.BeginInvoke(() => CompareSessions(paths));
 
             RegisterAppLocation();
         }
@@ -43,6 +44,14 @@ namespace openXRTK_Graph
                 window.WindowState = WindowState.Normal;
             window.Activate();
             window.LoadFile(path);
+        }
+
+        private void CompareSessions(IReadOnlyList<string> paths)
+        {
+            var window = new CompareWindow { Owner = MainWindow };
+            window.Show();
+            window.Activate();
+            window.LoadFiles(paths);
         }
 
         protected override void OnExit(ExitEventArgs e)

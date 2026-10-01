@@ -31,6 +31,18 @@ public static class ChartBuilder
     internal static readonly OxyColor ColB_AppCpu    = OxyColor.FromRgb( 72, 209, 200);
     internal static readonly OxyColor ColB_RenderCpu = OxyColor.FromRgb(160, 130, 255);
     internal static readonly OxyColor ColB_Fps       = OxyColor.FromRgb(  0, 220, 255);
+    // Session C — green family (dotted lines)
+    internal static readonly OxyColor ColC_AppGpu    = OxyColor.FromRgb( 90, 220,  90);
+    internal static readonly OxyColor ColC_AppCpu    = OxyColor.FromRgb(190, 240,  90);
+    internal static readonly OxyColor ColC_RenderCpu = OxyColor.FromRgb( 60, 180, 120);
+    internal static readonly OxyColor ColC_Fps       = OxyColor.FromRgb(150, 255, 150);
+
+    private static (OxyColor AppGpu, OxyColor AppCpu, OxyColor RenderCpu, OxyColor Fps, LineStyle Style) SessionStyle(int index) => index switch
+    {
+        0 => (ColA_AppGpu, ColA_AppCpu, ColA_RenderCpu, ColA_Fps, LineStyle.Solid),
+        1 => (ColB_AppGpu, ColB_AppCpu, ColB_RenderCpu, ColB_Fps, LineStyle.Dash),
+        _ => (ColC_AppGpu, ColC_AppCpu, ColC_RenderCpu, ColC_Fps, LineStyle.Dot),
+    };
 
     private static PlotModel CreateDarkModel(string title)
     {
@@ -69,7 +81,9 @@ public static class ChartBuilder
     public static PlotModel BuildFrametimeDistribution(
         IList<CsvDataPoint> data,
         string title,
-        double bucketWidthMs = 0.2)
+        double bucketWidthMs = 0.2,
+        bool includeCpu = true,
+        bool includeGpu = true)
     {
         var model = CreateDarkModel(title);
         model.Legends.Add(new OxyPlot.Legends.Legend
@@ -83,25 +97,32 @@ public static class ChartBuilder
         var xAxis = CreateLinearAxis(AxisPosition.Bottom, "Frametime (ms)");
         xAxis.Minimum = 0;
         xAxis.Maximum = 30;
+        xAxis.AbsoluteMinimum = 0;
+        xAxis.AbsoluteMaximum = 30;
         model.Axes.Add(xAxis);
 
         var yAxis = CreateLinearAxis(AxisPosition.Left, "Percentage (%)");
         yAxis.Minimum = 0;
+        yAxis.AbsoluteMinimum = 0;
         model.Axes.Add(yAxis);
 
         AddFramerateMarkers(model, xAxis);
 
-        // App CPU series
-        AddDistributionSeries(model, data.Select(d => d.AppCpuMs).ToList(), bucketWidthMs,
-            "App CPU", OxyColor.FromRgb(255, 100, 100));
+        // Samples with 0 ms are treated as "not measured" and excluded from the distribution
+        if (includeCpu)
+        {
+            AddDistributionSeries(model, data.Select(d => d.AppCpuMs).Where(v => v > 0).ToList(), bucketWidthMs,
+                "App CPU", OxyColor.FromRgb(255, 100, 100));
 
-        // Render CPU series
-        AddDistributionSeries(model, data.Select(d => d.RenderCpuMs).ToList(), bucketWidthMs,
-            "Render CPU", OxyColor.FromRgb(100, 220, 100));
+            AddDistributionSeries(model, data.Select(d => d.RenderCpuMs).Where(v => v > 0).ToList(), bucketWidthMs,
+                "Render CPU", OxyColor.FromRgb(100, 220, 100));
+        }
 
-        // App GPU series
-        AddDistributionSeries(model, data.Select(d => d.AppGpuMs).ToList(), bucketWidthMs,
-            "App GPU", OxyColor.FromRgb(100, 160, 255));
+        if (includeGpu)
+        {
+            AddDistributionSeries(model, data.Select(d => d.AppGpuMs).Where(v => v > 0).ToList(), bucketWidthMs,
+                "App GPU", OxyColor.FromRgb(100, 160, 255));
+        }
 
         return model;
     }
@@ -317,14 +338,13 @@ public static class ChartBuilder
     }
 
     /// <summary>
-    /// Overlaid frametime distribution: Session A (solid) vs Session B (dashed).
+    /// Overlaid frametime distribution: Session A (solid), B (dashed), C (dotted).
     /// </summary>
     public static PlotModel BuildComparisonDistribution(
-        IList<CsvDataPoint> dataA, string labelA,
-        IList<CsvDataPoint> dataB, string labelB,
+        IList<CompareSession> sessions,
         double bucketWidthMs = 0.2)
     {
-        var model = CreateDarkModel("Frametime Distribution — A vs. B");
+        var model = CreateDarkModel("Frametime Distribution — " + string.Join(" vs. ", sessions.Select(s => s.Key)));
         model.Legends.Add(new OxyPlot.Legends.Legend
         {
             LegendPosition = OxyPlot.Legends.LegendPosition.TopRight,
@@ -339,25 +359,25 @@ public static class ChartBuilder
         model.Axes.Add(yAxis);
         AddFramerateMarkers(model, xAxis);
 
-        AddDistributionSeries(model, dataA.Select(d => d.AppCpuMs).ToList(),    bucketWidthMs, "A: App CPU",    ColA_AppCpu,    LineStyle.Solid);
-        AddDistributionSeries(model, dataA.Select(d => d.RenderCpuMs).ToList(), bucketWidthMs, "A: Render CPU", ColA_RenderCpu, LineStyle.Solid);
-        AddDistributionSeries(model, dataA.Select(d => d.AppGpuMs).ToList(),    bucketWidthMs, "A: App GPU",    ColA_AppGpu,    LineStyle.Solid);
-        AddDistributionSeries(model, dataB.Select(d => d.AppCpuMs).ToList(),    bucketWidthMs, "B: App CPU",    ColB_AppCpu,    LineStyle.Dash);
-        AddDistributionSeries(model, dataB.Select(d => d.RenderCpuMs).ToList(), bucketWidthMs, "B: Render CPU", ColB_RenderCpu, LineStyle.Dash);
-        AddDistributionSeries(model, dataB.Select(d => d.AppGpuMs).ToList(),    bucketWidthMs, "B: App GPU",    ColB_AppGpu,    LineStyle.Dash);
+        for (int i = 0; i < sessions.Count; i++)
+        {
+            var s = sessions[i];
+            var st = SessionStyle("ABC".IndexOf(s.Key, StringComparison.Ordinal));
+            AddDistributionSeries(model, s.Data.Select(d => d.AppCpuMs).Where(v => v > 0).ToList(),    bucketWidthMs, $"{s.Key}: App CPU",    st.AppCpu,    st.Style);
+            AddDistributionSeries(model, s.Data.Select(d => d.RenderCpuMs).Where(v => v > 0).ToList(), bucketWidthMs, $"{s.Key}: Render CPU", st.RenderCpu, st.Style);
+            AddDistributionSeries(model, s.Data.Select(d => d.AppGpuMs).Where(v => v > 0).ToList(),    bucketWidthMs, $"{s.Key}: App GPU",    st.AppGpu,    st.Style);
+        }
 
         return model;
     }
 
     /// <summary>
-    /// Overlaid GPU frametime + FPS for two sessions, X-axis normalized to frame index.
-    /// Session A: solid lines. Session B: dashed lines.
+    /// Overlaid GPU frametime + FPS for up to three sessions, X-axis normalized to frame index.
+    /// Session A: solid lines. Session B: dashed lines. Session C: dotted lines.
     /// </summary>
-    public static PlotModel BuildComparisonFrameIndexSeries(
-        IList<CsvDataPoint> dataA, string labelA,
-        IList<CsvDataPoint> dataB, string labelB)
+    public static PlotModel BuildComparisonFrameIndexSeries(IList<CompareSession> sessions)
     {
-        var model = CreateDarkModel("GPU Frametime & FPS by Frame — A vs. B");
+        var model = CreateDarkModel("GPU Frametime & FPS by Frame — " + string.Join(" vs. ", sessions.Select(s => s.Key)));
         model.Legends.Add(new OxyPlot.Legends.Legend
         {
             LegendPosition = OxyPlot.Legends.LegendPosition.TopRight,
@@ -378,24 +398,19 @@ public static class ChartBuilder
         model.Axes.Add(yFt);
         model.Axes.Add(yFps);
 
-        var gpuA = new LineSeries { Title = "A: App GPU", Color = ColA_AppGpu, StrokeThickness = 1.3, MarkerType = MarkerType.None, YAxisKey = "ft",  LineStyle = LineStyle.Solid };
-        var fpsA = new LineSeries { Title = "A: FPS",     Color = ColA_Fps,    StrokeThickness = 1.3, MarkerType = MarkerType.None, YAxisKey = "fps", LineStyle = LineStyle.Solid };
-        for (int i = 0; i < dataA.Count; i++)
+        for (int s = 0; s < sessions.Count; s++)
         {
-            gpuA.Points.Add(new DataPoint(i, dataA[i].AppGpuMs));
-            fpsA.Points.Add(new DataPoint(i, dataA[i].Fps));
+            var data = sessions[s].Data;
+            var st = SessionStyle("ABC".IndexOf(sessions[s].Key, StringComparison.Ordinal));
+            var gpu = new LineSeries { Title = $"{sessions[s].Key}: App GPU", Color = st.AppGpu, StrokeThickness = 1.3, MarkerType = MarkerType.None, YAxisKey = "ft",  LineStyle = st.Style };
+            var fps = new LineSeries { Title = $"{sessions[s].Key}: FPS",     Color = st.Fps,    StrokeThickness = 1.3, MarkerType = MarkerType.None, YAxisKey = "fps", LineStyle = st.Style };
+            for (int i = 0; i < data.Count; i++)
+            {
+                gpu.Points.Add(new DataPoint(i, data[i].AppGpuMs));
+                fps.Points.Add(new DataPoint(i, data[i].Fps));
+            }
+            model.Series.Add(gpu); model.Series.Add(fps);
         }
-
-        var gpuB = new LineSeries { Title = "B: App GPU", Color = ColB_AppGpu, StrokeThickness = 1.3, MarkerType = MarkerType.None, YAxisKey = "ft",  LineStyle = LineStyle.Dash };
-        var fpsB = new LineSeries { Title = "B: FPS",     Color = ColB_Fps,    StrokeThickness = 1.3, MarkerType = MarkerType.None, YAxisKey = "fps", LineStyle = LineStyle.Dash };
-        for (int i = 0; i < dataB.Count; i++)
-        {
-            gpuB.Points.Add(new DataPoint(i, dataB[i].AppGpuMs));
-            fpsB.Points.Add(new DataPoint(i, dataB[i].Fps));
-        }
-
-        model.Series.Add(gpuA); model.Series.Add(fpsA);
-        model.Series.Add(gpuB); model.Series.Add(fpsB);
         return model;
     }
 

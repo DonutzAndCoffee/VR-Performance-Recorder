@@ -61,6 +61,7 @@ namespace XrPerf.SimHubPlugin
             });
             this.AddAction("XrPerfOpenLastSession", (a, b) => OpenLastSession());
             this.AddAction("XrPerfMarker", (a, b) => AddMarker());
+            this.AddAction("XrPerfCompareLastSessions", (a, b) => CompareLastSessions());
 
             _pollTimer = new Timer(_ => PollStatus(), null, 0, 1000);
             SimHub.Logging.Current.Info("[XrPerf] Plugin initialized");
@@ -155,6 +156,31 @@ namespace XrPerf.SimHubPlugin
         public void OpenSession(string path)
         {
             Fire(() => Send(new ControlRequest { Command = ControlProtocol.Commands.OpenSession, SessionPath = path }));
+        }
+
+        /// <summary>Opens the comparison window in openXRTK Graph with 2-3 sessions (A, B, C in the given order).</summary>
+        public void CompareSessions(IList<string> paths)
+        {
+            if (paths == null || paths.Count < 2) return;
+            var list = new List<string>(paths);
+            if (list.Count > ControlProtocol.MaxCompareSessions)
+                list.RemoveRange(ControlProtocol.MaxCompareSessions, list.Count - ControlProtocol.MaxCompareSessions);
+            Fire(() => Send(new ControlRequest { Command = ControlProtocol.Commands.CompareSessions, SessionPaths = list }));
+        }
+
+        /// <summary>Compares the two most recent sessions (older = A, newer = B).</summary>
+        public void CompareLastSessions()
+        {
+            Fire(() =>
+            {
+                var sessions = ListSessions(2);
+                if (sessions.Count < 2) return;
+                Send(new ControlRequest
+                {
+                    Command = ControlProtocol.Commands.CompareSessions,
+                    SessionPaths = new List<string> { sessions[1].Path, sessions[0].Path },
+                });
+            });
         }
 
         public void SaveSettings() => this.SaveCommonSettings(SettingsKey, Settings);

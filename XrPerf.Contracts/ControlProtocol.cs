@@ -23,7 +23,11 @@ namespace XrPerf.Contracts
             public const string Lap = "Lap";
             public const string ListSessions = "ListSessions";
             public const string OpenSession = "OpenSession";
+            /// <summary>Opens the comparison window with 2-3 sessions (<see cref="ControlRequest.SessionPaths"/>).</summary>
+            public const string CompareSessions = "CompareSessions";
         }
+
+        public const int MaxCompareSessions = 3;
 
         private static readonly DataContractJsonSerializerSettings SerializerSettings = new DataContractJsonSerializerSettings
         {
@@ -61,6 +65,8 @@ namespace XrPerf.Contracts
         [DataMember(EmitDefaultValue = false)] public int LapNumber { get; set; }
         [DataMember(EmitDefaultValue = false)] public int MaxCount { get; set; }
         [DataMember(EmitDefaultValue = false)] public string SessionPath { get; set; }
+        /// <summary>Session CSV paths for <see cref="ControlProtocol.Commands.CompareSessions"/> (A, B, C).</summary>
+        [DataMember(EmitDefaultValue = false)] public List<string> SessionPaths { get; set; }
         /// <summary>Aggregation interval per CSV row in ms (0 = default 1000).</summary>
         [DataMember(EmitDefaultValue = false)] public int RowIntervalMs { get; set; }
         /// <summary>Additionally write every single frame to "_frames.csv".</summary>

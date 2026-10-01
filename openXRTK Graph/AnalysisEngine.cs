@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 namespace openXRTK_Graph;
 
@@ -300,149 +300,161 @@ public static class AnalysisEngine
 
     // ─── Session Comparison ───────────────────────────────────────────────────
 
-    public static string CompareSessionsAnalysis(
-        IList<CsvDataPoint> dataA, SessionMetadata? metaA, string labelA,
-        IList<CsvDataPoint> dataB, SessionMetadata? metaB, string labelB)
-    {
-        if (dataA.Count == 0 || dataB.Count == 0)
-            return "Load both sessions to generate the comparison report.";
-        var sb = new StringBuilder();
+	public static string CompareSessionsAnalysis(IList<CompareSession> sessions)
+	{
+		if (sessions.Count < 2 || sessions.Any(s => s.Data.Count == 0))
+			return "Load at least two sessions to generate the comparison report.";
+		var sb = new StringBuilder();
+		int n = sessions.Count;
 
-        var fpsA = Sorted(dataA.Select(d => d.Fps));
-        var fpsB = Sorted(dataB.Select(d => d.Fps));
-        var gpuA = Sorted(dataA.Select(d => d.AppGpuMs));
-        var gpuB = Sorted(dataB.Select(d => d.AppGpuMs));
-        var cpuA = Sorted(dataA.Select(d => d.AppCpuMs));
-        var cpuB = Sorted(dataB.Select(d => d.AppCpuMs));
+		var fpsAvg  = new double[n]; var fps1l  = new double[n]; var fpsStd = new double[n];
+		var gpuAvg  = new double[n]; var gpuP99 = new double[n];
+		var cpuAvg  = new double[n]; var cpuP99 = new double[n];
+		var vramAvg = new double[n];
+		for (int i = 0; i < n; i++)
+		{
+			var d   = sessions[i].Data;
+			var fps = Sorted(d.Select(x => x.Fps));
+			var gpu = Sorted(d.Select(x => x.AppGpuMs));
+			var cpu = Sorted(d.Select(x => x.AppCpuMs));
+			fpsAvg[i]  = fps.Average();
+			fps1l[i]   = Percentile(fps, 0.01);
+			fpsStd[i]  = StdDev(fps, fpsAvg[i]);
+			gpuAvg[i]  = gpu.Average();
+			gpuP99[i]  = Percentile(gpu, 0.99);
+			cpuAvg[i]  = cpu.Average();
+			cpuP99[i]  = Percentile(cpu, 0.99);
+			vramAvg[i] = d.Average(x => x.VramMb);
+		}
 
-        double fpsAvgA = fpsA.Average(),  fpsAvgB = fpsB.Average();
-        double fps1lA  = Percentile(fpsA, 0.01), fps1lB = Percentile(fpsB, 0.01);
-        double fpsStdA = StdDev(fpsA, fpsAvgA),  fpsStdB = StdDev(fpsB, fpsAvgB);
-        double gpuAvgA = gpuA.Average(),  gpuAvgB = gpuB.Average();
-        double gpuP99A = Percentile(gpuA, 0.99), gpuP99B = Percentile(gpuB, 0.99);
-        double cpuAvgA = cpuA.Average(),  cpuAvgB = cpuB.Average();
-        double cpuP99A = Percentile(cpuA, 0.99), cpuP99B = Percentile(cpuB, 0.99);
-        double vramAvgA = dataA.Average(d => d.VramMb), vramAvgB = dataB.Average(d => d.VramMb);
+		// Returns index of the best session, or -1 if the best is within 0.5 % of the runner-up
+		static int Best(double[] v, bool higherIsBetter)
+		{
+			var order = Enumerable.Range(0, v.Length)
+				.OrderBy(i => higherIsBetter ? -v[i] : v[i]).ToArray();
+			double best = v[order[0]], next = v[order[1]];
+			bool clear = higherIsBetter ? best > next * 1.005 : next > best * 1.005;
+			return clear ? order[0] : -1;
+		}
 
-        // +1 = A wins, -1 = B wins, 0 = tie (0.5 % tolerance)
-        static int WinH(double a, double b) => a > b * 1.005 ? 1 : b > a * 1.005 ? -1 : 0;
-        static int WinL(double a, double b) => WinH(b, a);
-        static string WS(int w) => w == 1 ? "✅ A" : w == -1 ? "✅ B" : "  —";
+		var keys = sessions.Select(s => s.Key).ToArray();
+		string WS(int w) => w >= 0 ? "✅ " + keys[w] : "  —";
 
-        int wFpsAvg  = WinH(fpsAvgA, fpsAvgB);
-        int wFps1l   = WinH(fps1lA,  fps1lB);
-        int wFpsStab = WinL(fpsStdA, fpsStdB);
-        int wGpuAvg  = WinL(gpuAvgA, gpuAvgB);
-        int wGpuP99  = WinL(gpuP99A, gpuP99B);
-        int wCpuAvg  = WinL(cpuAvgA, cpuAvgB);
-        int wCpuP99  = WinL(cpuP99A, cpuP99B);
+		int[] winners =
+		[
+			Best(fpsAvg, true), Best(fps1l, true), Best(fpsStd, false),
+			Best(gpuAvg, false), Best(gpuP99, false),
+			Best(cpuAvg, false), Best(cpuP99, false),
+		];
+		var scores = new int[n];
+		foreach (var w in winners) if (w >= 0) scores[w]++;
 
-        int[] winVec = [wFpsAvg, wFps1l, wFpsStab, wGpuAvg, wGpuP99, wCpuAvg, wCpuP99];
-        int scoreA = winVec.Count(w => w == 1);
-        int scoreB = winVec.Count(w => w == -1);
+		const int C0 = 22, C1 = 14;
+		string sep = "  " + new string('─', C0 + C1 * n + 8);
 
-        const int C0 = 22, C1 = 14, C2 = 14, C3 = 12;
-        string sep = "  " + new string('─', C0 + C1 + C2 + C3 + 8);
+		void Row(string metric, Func<int, string> val, int winner)
+		{
+			var line = new StringBuilder("  " + metric.PadRight(C0));
+			for (int i = 0; i < n; i++) line.Append(val(i).PadRight(C1));
+			line.Append(winner == int.MinValue ? "" : WS(winner));
+			sb.AppendLine(line.ToString());
+		}
 
-        void Row(string metric, string valA, string valB, string delta, int winner) =>
-            sb.AppendLine("  " + metric.PadRight(C0) + valA.PadRight(C1) + valB.PadRight(C2) + delta.PadRight(C3) + WS(winner));
+		sb.AppendLine("📊 Session Comparison Report");
+		sb.AppendLine();
+		foreach (var s in sessions)
+			sb.AppendLine($"  {s.Key}  {s.Label}   ({s.Data.Count:N0} samples)");
+		sb.AppendLine();
+		Row("Metric", i => "Session " + keys[i], int.MinValue);
+		sb.Length -= Environment.NewLine.Length;
+		sb.AppendLine("Best");
+		sb.AppendLine(sep);
 
-        sb.AppendLine("📊 Session Comparison Report");
-        sb.AppendLine();
-        sb.AppendLine($"  A  {labelA}   ({dataA.Count:N0} samples)");
-        sb.AppendLine($"  B  {labelB}   ({dataB.Count:N0} samples)");
-        sb.AppendLine();
-        sb.AppendLine("  " + "Metric".PadRight(C0) + "Session A".PadRight(C1) + "Session B".PadRight(C2) + "Delta".PadRight(C3) + "Winner");
-        sb.AppendLine(sep);
+		Row("FPS avg",       i => $"{fpsAvg[i]:F1}",   winners[0]);
+		Row("FPS 1% low",    i => $"{fps1l[i]:F1}",    winners[1]);
+		Row("FPS stability", i => $"±{fpsStd[i]:F2}",  winners[2]);
+		Row("GPU avg (ms)",  i => $"{gpuAvg[i]:F2}",   winners[3]);
+		Row("GPU p99 (ms)",  i => $"{gpuP99[i]:F2}",   winners[4]);
+		Row("CPU avg (ms)",  i => $"{cpuAvg[i]:F2}",   winners[5]);
+		Row("CPU p99 (ms)",  i => $"{cpuP99[i]:F2}",   winners[6]);
+		Row("VRAM avg (MB)", i => $"{vramAvg[i]:F0}",  -1);
 
-        Row("FPS avg",       $"{fpsAvgA:F1}",  $"{fpsAvgB:F1}",  $"{fpsAvgB-fpsAvgA:+0.0;-0.0;0.0}",    wFpsAvg);
-        Row("FPS 1% low",    $"{fps1lA:F1}",   $"{fps1lB:F1}",   $"{fps1lB-fps1lA:+0.0;-0.0;0.0}",      wFps1l);
-        Row("FPS stability", $"±{fpsStdA:F2}", $"±{fpsStdB:F2}", $"{fpsStdB-fpsStdA:+0.00;-0.00;0.00}", wFpsStab);
-        Row("GPU avg (ms)",  $"{gpuAvgA:F2}",  $"{gpuAvgB:F2}",  $"{gpuAvgB-gpuAvgA:+0.00;-0.00;0.00}", wGpuAvg);
-        Row("GPU p99 (ms)",  $"{gpuP99A:F2}",  $"{gpuP99B:F2}",  $"{gpuP99B-gpuP99A:+0.00;-0.00;0.00}", wGpuP99);
-        Row("CPU avg (ms)",  $"{cpuAvgA:F2}",  $"{cpuAvgB:F2}",  $"{cpuAvgB-cpuAvgA:+0.00;-0.00;0.00}", wCpuAvg);
-        Row("CPU p99 (ms)",  $"{cpuP99A:F2}",  $"{cpuP99B:F2}",  $"{cpuP99B-cpuP99A:+0.00;-0.00;0.00}", wCpuP99);
-        Row("VRAM avg (MB)", $"{vramAvgA:F0}", $"{vramAvgB:F0}", $"{vramAvgB-vramAvgA:+0;-0;0}",        0);
+		sb.AppendLine(sep);
+		Row("Score (7 metrics)", i => scores[i] + " wins", int.MinValue);
+		sb.AppendLine("  " + "  * VRAM excluded".PadRight(C0) + "(depends on settings)");
+		sb.AppendLine();
 
-        sb.AppendLine(sep);
-        sb.AppendLine("  " + "Score (7 metrics)".PadRight(C0) + (scoreA + " wins").PadRight(C1) + (scoreB + " wins").PadRight(C2));
-        sb.AppendLine("  " + "  * VRAM excluded".PadRight(C0) + "(depends on settings)");
-        sb.AppendLine();
+		int top = scores.Max();
+		var leaders = Enumerable.Range(0, n).Where(i => scores[i] == top).ToList();
+		if (leaders.Count == 1)
+			sb.AppendLine($"  🏆 Session {keys[leaders[0]]} is the most performant ({top}/7 metrics).");
+		else
+			sb.AppendLine("  ⚖️  Sessions are comparable — no clear winner.");
 
-        if (scoreA > scoreB)
-            sb.AppendLine($"  🏆 Session A is more performant ({scoreA}/7 metrics).");
-        else if (scoreB > scoreA)
-            sb.AppendLine($"  🏆 Session B is more performant ({scoreB}/7 metrics).");
-        else
-            sb.AppendLine("  ⚖️  Sessions are comparable — no clear winner.");
+		int gBest = Array.IndexOf(gpuAvg, gpuAvg.Min()), gWorst = Array.IndexOf(gpuAvg, gpuAvg.Max());
+		if (gpuAvg[gWorst] - gpuAvg[gBest] > 0.05)
+			sb.AppendLine($"     GPU: Session {keys[gBest]} is {(gpuAvg[gWorst] - gpuAvg[gBest]) / gpuAvg[gWorst] * 100:F1}% faster than {keys[gWorst]} ({gpuAvg[gBest]:F2} vs {gpuAvg[gWorst]:F2} ms avg).");
+		int fBest = Array.IndexOf(fpsAvg, fpsAvg.Max()), fWorst = Array.IndexOf(fpsAvg, fpsAvg.Min());
+		if (fpsAvg[fBest] - fpsAvg[fWorst] > 0.2)
+			sb.AppendLine($"     FPS: Session {keys[fBest]} is {(fpsAvg[fBest] - fpsAvg[fWorst]) / fpsAvg[fWorst] * 100:F1}% higher than {keys[fWorst]} ({fpsAvg[fBest]:F1} vs {fpsAvg[fWorst]:F1} avg).");
 
-        if (Math.Abs(gpuAvgA - gpuAvgB) > 0.05)
-        {
-            double better = Math.Min(gpuAvgA, gpuAvgB), worse = Math.Max(gpuAvgA, gpuAvgB);
-            string gpuWin = gpuAvgA < gpuAvgB ? "A" : "B";
-            sb.AppendLine($"     GPU: Session {gpuWin} is {(worse - better) / worse * 100:F1}% faster ({better:F2} vs {worse:F2} ms avg).");
-        }
-        if (Math.Abs(fpsAvgA - fpsAvgB) > 0.2)
-        {
-            double better = Math.Max(fpsAvgA, fpsAvgB), worse = Math.Min(fpsAvgA, fpsAvgB);
-            string fpsWin = fpsAvgA > fpsAvgB ? "A" : "B";
-            sb.AppendLine($"     FPS: Session {fpsWin} is {(better - worse) / worse * 100:F1}% higher ({better:F1} vs {worse:F1} avg).");
-        }
+		AppendComparisonSettingsDiff(sb, sessions);
+		return sb.ToString().TrimEnd();
+	}
 
-        AppendComparisonSettingsDiff(sb, metaA, metaB);
-        return sb.ToString().TrimEnd();
-    }
+	private static void AppendComparisonSettingsDiff(StringBuilder sb, IList<CompareSession> sessions)
+	{
+		if (sessions.All(s => s.Meta is null)) return;
+		int n = sessions.Count;
+		const int CW = 22;
 
-    private static void AppendComparisonSettingsDiff(StringBuilder sb, SessionMetadata? metaA, SessionMetadata? metaB)
-    {
-        if (metaA is null && metaB is null) return;
+		void Header(string title)
+		{
+			sb.AppendLine();
+			sb.AppendLine($"  ─── {title} " + new string('─', Math.Max(4, 60 - title.Length)));
+			var h = new StringBuilder("  " + "Setting".PadRight(24));
+			foreach (var s in sessions) h.Append(("Session " + s.Key).PadRight(CW));
+			sb.AppendLine(h.ToString().TrimEnd());
+			sb.AppendLine("  " + new string('─', 24 + CW * n));
+		}
 
-        sb.AppendLine();
-        sb.AppendLine("  ─── OpenXR Toolkit Settings ──────────────────────────────────────────────────");
-        sb.AppendLine("  " + "Setting".PadRight(24) + "Session A".PadRight(22) + "Session B");
-        sb.AppendLine("  " + new string('─', 66));
+		void SettingRow(string name, IList<string?> values, bool onlyIfDiff)
+		{
+			var vals = values.Select(v => v ?? "n/a").ToList();
+			bool diff = vals.Distinct().Count() > 1;
+			if (onlyIfDiff && !diff) return;
+			var line = new StringBuilder("  " + name.PadRight(24));
+			for (int i = 0; i < n; i++)
+				line.Append(i < n - 1 ? vals[i].PadRight(CW) : vals[i]);
+			if (diff) line.Append("  ←");
+			sb.AppendLine(line.ToString());
+		}
 
-        void OxrRow(string name, string? vA, string? vB)
-        {
-            string sa = vA ?? "n/a", sv = vB ?? "n/a";
-            string flag = sa != sv ? "  ←" : "";
-            sb.AppendLine("  " + name.PadRight(24) + sa.PadRight(22) + sv + flag);
-        }
+		Header("OpenXR Toolkit Settings");
+		SettingRow("Target rate (Hz)", sessions.Select(s => s.Meta?.TargetRate?.ToString()).ToList(), false);
+		SettingRow("Upscaling", sessions.Select(s =>
+			s.Meta?.Scaling.HasValue == true ? $"{s.Meta.ScalingTypeName} {s.Meta.Scaling}%" : null).ToList(), false);
+		SettingRow("Sharpness", sessions.Select(s => s.Meta?.Sharpness?.ToString()).ToList(), false);
+		SettingRow("Render res", sessions.Select(s =>
+			s.Meta?.ResolutionWidth.HasValue == true ? $"{s.Meta.ResolutionWidth}×{s.Meta.ResolutionHeight}" : null).ToList(), false);
 
-        OxrRow("Target rate (Hz)", metaA?.TargetRate?.ToString(), metaB?.TargetRate?.ToString());
-        OxrRow("Upscaling",
-            metaA?.Scaling.HasValue == true ? $"{metaA.ScalingTypeName} {metaA.Scaling}%" : null,
-            metaB?.Scaling.HasValue == true ? $"{metaB.ScalingTypeName} {metaB.Scaling}%" : null);
-        OxrRow("Sharpness",    metaA?.Sharpness?.ToString(), metaB?.Sharpness?.ToString());
-        OxrRow("Render res",
-            metaA?.ResolutionWidth.HasValue == true ? $"{metaA.ResolutionWidth}×{metaA.ResolutionHeight}" : null,
-            metaB?.ResolutionWidth.HasValue == true ? $"{metaB.ResolutionWidth}×{metaB.ResolutionHeight}" : null);
+		var gfx = sessions.Select(s => s.Meta?.GameSettings.GetValueOrDefault("Graphics Options")).ToList();
+		if (gfx.All(g => g is null)) return;
 
-        var gfxA = metaA?.GameSettings.GetValueOrDefault("Graphics Options");
-        var gfxB = metaB?.GameSettings.GetValueOrDefault("Graphics Options");
-        if (gfxA is null && gfxB is null) return;
+		Header("iRacing Graphics Settings (changed)");
 
-        sb.AppendLine();
-        sb.AppendLine("  ─── iRacing Graphics Settings (changed) ─────────────────────────────────────");
-        sb.AppendLine("  " + "Setting".PadRight(24) + "Session A".PadRight(22) + "Session B");
-        sb.AppendLine("  " + new string('─', 66));
+		string[] trackedKeys = [
+			"ShaderQuality", "MSAASamples", "ShadowDetail", "SSAO", "SSRLevel",
+			"CarDetail", "LODPctMax", "MaxCarsToDraw", "NvReflexMode",
+			"AntiAliasMethod", "ParticleDetail", "FoliageDetail",
+			"DynamicShadowMaps", "VidMemToUseMB",
+		];
 
-        string[] trackedKeys = [
-            "ShaderQuality", "MSAASamples", "ShadowDetail", "SSAO", "SSRLevel",
-            "CarDetail", "LODPctMax", "MaxCarsToDraw", "NvReflexMode",
-            "AntiAliasMethod", "ParticleDetail", "FoliageDetail",
-            "DynamicShadowMaps", "VidMemToUseMB",
-        ];
-
-        bool anyDiff = false;
-        foreach (var key in trackedKeys)
-        {
-            string vA = gfxA?.GetValueOrDefault(key) ?? "n/a";
-            string vB = gfxB?.GetValueOrDefault(key) ?? "n/a";
-            if (vA != vB) { sb.AppendLine("  " + key.PadRight(24) + vA.PadRight(22) + vB + "  ←"); anyDiff = true; }
-        }
-        if (!anyDiff) sb.AppendLine("  (No differences in tracked settings)");
-    }
+		int before = sb.Length;
+		foreach (var key in trackedKeys)
+			SettingRow(key, gfx.Select(g => g?.GetValueOrDefault(key)).ToList(), true);
+		if (sb.Length == before) sb.AppendLine("  (No differences in tracked settings)");
+	}
 
     // ─── Shared helpers ──────────────────────────────────────────────────────
 

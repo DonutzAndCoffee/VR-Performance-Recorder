@@ -1,65 +1,86 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Win32;
 
 namespace openXRTK_Graph;
 
 public partial class CompareWindow : Window
 {
-    private List<CsvDataPoint> _dataA = [];
-    private List<CsvDataPoint> _dataB = [];
-    private SessionMetadata?   _metaA;
-    private SessionMetadata?   _metaB;
-    private string _labelA = "";
-    private string _labelB = "";
+    private const int SlotCount = 3;
+    private static readonly string[] Keys = ["A", "B", "C"];
+
+    private readonly CompareSession?[] _sessions = new CompareSession?[SlotCount];
 
     public CompareWindow()
     {
         InitializeComponent();
     }
 
-    private void BtnOpenA_Click(object sender, RoutedEventArgs e) => LoadSession(isA: true);
-    private void BtnOpenB_Click(object sender, RoutedEventArgs e) => LoadSession(isA: false);
+    private void BtnOpenA_Click(object sender, RoutedEventArgs e) => LoadSession(0);
+    private void BtnOpenB_Click(object sender, RoutedEventArgs e) => LoadSession(1);
+    private void BtnOpenC_Click(object sender, RoutedEventArgs e) => LoadSession(2);
 
-    private void LoadSession(bool isA)
+    private void BtnClearC_Click(object sender, RoutedEventArgs e)
+    {
+        _sessions[2] = null;
+        TxtFileC.Text = "not loaded";
+        StatsBarC.Visibility = Visibility.Collapsed;
+        BtnClearC.Visibility = Visibility.Collapsed;
+        UpdateCharts();
+    }
+
+    private (TextBlock File, TextBlock Stats, FrameworkElement Bar) SlotControls(int slot) => slot switch
+    {
+        0 => (TxtFileA, TxtStatsA, StatsBarA),
+        1 => (TxtFileB, TxtStatsB, StatsBarB),
+        _ => (TxtFileC, TxtStatsC, StatsBarC),
+    };
+
+    /// <summary>Loads up to three sessions into slots A, B, C (used by the SimHub plugin).</summary>
+    public void LoadFiles(IReadOnlyList<string> paths)
+    {
+        for (int i = 0; i < SlotCount; i++)
+        {
+            if (i < paths.Count) LoadSessionFile(i, paths[i], refresh: false);
+        }
+        UpdateCharts();
+    }
+
+    private void LoadSession(int slot)
     {
         var dlg = new OpenFileDialog
         {
-            Title = isA ? "Open Session A CSV" : "Open Session B CSV",
+            Title = $"Open Session {Keys[slot]} CSV",
             Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
             CheckFileExists = true,
         };
         if (dlg.ShowDialog() != true) return;
+        LoadSessionFile(slot, dlg.FileName, refresh: true);
+    }
 
+    private void LoadSessionFile(int slot, string fileName, bool refresh)
+    {
         try
         {
-            var data  = CsvParser.Parse(dlg.FileName);
+            var data  = CsvParser.Parse(fileName);
             if (data.Count == 0)
             {
-                MessageBox.Show("The file contained no valid data rows.", "Empty File",
+                MessageBox.Show($"The file contained no valid data rows:\n{fileName}", "Empty File",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            var meta  = CompanionDataLoader.TryLoad(dlg.FileName);
-            string label = Path.GetFileNameWithoutExtension(dlg.FileName);
+            var meta  = CompanionDataLoader.TryLoad(fileName);
+            string label = Path.GetFileNameWithoutExtension(fileName);
 
-            if (isA)
-            {
-                _dataA = data; _metaA = meta; _labelA = label;
-                TxtFileA.Text = Path.GetFileName(dlg.FileName);
-                TxtStatsA.Text = FormatStats(data);
-                StatsBarA.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                _dataB = data; _metaB = meta; _labelB = label;
-                TxtFileB.Text = Path.GetFileName(dlg.FileName);
-                TxtStatsB.Text = FormatStats(data);
-                StatsBarB.Visibility = Visibility.Visible;
-            }
+            _sessions[slot] = new CompareSession(Keys[slot], label, data, meta);
+            var (file, stats, bar) = SlotControls(slot);
+            file.Text = Path.GetFileName(fileName);
+            stats.Text = FormatStats(data);
+            bar.Visibility = Visibility.Visible;
+            if (slot == 2) BtnClearC.Visibility = Visibility.Visible;
 
-            if (_dataA.Count > 0 && _dataB.Count > 0)
-                UpdateCharts();
+            if (refresh) UpdateCharts();
         }
         catch (Exception ex)
         {
@@ -84,9 +105,19 @@ public partial class CompareWindow : Window
 
     private void UpdateCharts()
     {
-        Title = $"Session Comparison — {_labelA}  vs.  {_labelB}";
-        ChartCompDist.Model    = ChartBuilder.BuildComparisonDistribution(_dataA, _labelA, _dataB, _labelB);
-        ChartCompOverlay.Model = ChartBuilder.BuildComparisonFrameIndexSeries(_dataA, _labelA, _dataB, _labelB);
-        TxtCompReport.Text     = AnalysisEngine.CompareSessionsAnalysis(_dataA, _metaA, _labelA, _dataB, _metaB, _labelB);
+        var loaded = _sessions.OfType<CompareSession>().ToList();
+        if (loaded.Count < 2)
+        {
+            Title = "Session Comparison";
+            ChartCompDist.Model    = null;
+            ChartCompOverlay.Model = null;
+            TxtCompReport.Text     = AnalysisEngine.CompareSessionsAnalysis(loaded);
+            return;
+        }
+
+        Title = "Session Comparison — " + string.Join("  vs.  ", loaded.Select(s => s.Label));
+        ChartCompDist.Model    = ChartBuilder.BuildComparisonDistribution(loaded);
+        ChartCompOverlay.Model = ChartBuilder.BuildComparisonFrameIndexSeries(loaded);
+        TxtCompReport.Text     = AnalysisEngine.CompareSessionsAnalysis(loaded);
     }
 }

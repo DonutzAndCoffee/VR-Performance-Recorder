@@ -26,6 +26,9 @@ public sealed class XrPerfControlServer : IDisposable
     /// <summary>Raised (on a background thread) when a client asks to open a session in the UI.</summary>
     public event Action<string>? OpenSessionRequested;
 
+    /// <summary>Raised (on a background thread) when a client asks to compare 2-3 sessions.</summary>
+    public event Action<IReadOnlyList<string>>? CompareSessionsRequested;
+
     public XrPerfControlServer(XrPerfRecorder recorder)
     {
         _recorder = recorder;
@@ -118,6 +121,17 @@ public sealed class XrPerfControlServer : IDisposable
                         return ControlResponse.Fail("Session file not found.");
                     OpenSessionRequested?.Invoke(request.SessionPath);
                     return ControlResponse.Ok();
+
+                case ControlProtocol.Commands.CompareSessions:
+                {
+                    var paths = request.SessionPaths?.Where(p => !string.IsNullOrEmpty(p)).ToList() ?? [];
+                    if (paths.Count < 2 || paths.Count > ControlProtocol.MaxCompareSessions)
+                        return ControlResponse.Fail($"Select 2 to {ControlProtocol.MaxCompareSessions} sessions to compare.");
+                    if (paths.FirstOrDefault(p => !File.Exists(p)) is { } missing)
+                        return ControlResponse.Fail($"Session file not found: {missing}");
+                    CompareSessionsRequested?.Invoke(paths);
+                    return ControlResponse.Ok();
+                }
 
                 default:
                     return ControlResponse.Fail($"Unknown command '{request.Command}'.");

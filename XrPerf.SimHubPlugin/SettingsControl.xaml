@@ -39,6 +39,8 @@
                                    ActionName="XrPerfPlugin.XrPerfMarker" Margin="0,0,0,5"/>
                 <ui:ControlsEditor FriendlyName="Open last session" Width="500" HorizontalAlignment="Left"
                                    ActionName="XrPerfPlugin.XrPerfOpenLastSession" Margin="0,0,0,5"/>
+                <ui:ControlsEditor FriendlyName="Compare last two sessions" Width="500" HorizontalAlignment="Left"
+                                   ActionName="XrPerfPlugin.XrPerfCompareLastSessions" Margin="0,0,0,5"/>
             </StackPanel>
         </GroupBox>
 
@@ -84,8 +86,13 @@
 
         <GroupBox Header="Recorded sessions" Padding="8" Margin="0,8,0,0">
             <StackPanel>
-                <Button Content="Refresh" Width="90" HorizontalAlignment="Left" Click="BtnRefresh_Click" />
-                <ListView x:Name="LstSessions" Height="220" Margin="0,6,0,0" MouseDoubleClick="LstSessions_DoubleClick">
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Refresh" Width="90" Click="BtnRefresh_Click" />
+                    <Button x:Name="BtnCompare" Content="Compare selected" Width="130" Margin="6,0,0,0"
+                            IsEnabled="False" Click="BtnCompare_Click" />
+                </StackPanel>
+                <ListView x:Name="LstSessions" Height="220" Margin="0,6,0,0" SelectionMode="Extended"
+                          MouseDoubleClick="LstSessions_DoubleClick" SelectionChanged="LstSessions_SelectionChanged">
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="Start" Width="140" DisplayMemberBinding="{Binding StartTime, StringFormat=g}" />
@@ -96,7 +103,8 @@
                         </GridView>
                     </ListView.View>
                 </ListView>
-                <TextBlock Text="Double-click opens the session in openXRTK Graph." Foreground="Gray" Margin="0,4,0,0" />
+                <TextBlock Text="Double-click opens the session in openXRTK Graph. Ctrl+click 2-3 sessions and press 'Compare selected' to compare them (oldest = A)."
+                           Foreground="Gray" Margin="0,4,0,0" TextWrapping="Wrap" />
             </StackPanel>
         </GroupBox>
     </StackPanel>

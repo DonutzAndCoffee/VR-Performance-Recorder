@@ -7,7 +7,7 @@
         xmlns:oxy="http://oxyplot.org/wpf"
         mc:Ignorable="d"
         Title="OpenXR Toolkit Statistics Viewer"
-        Height="750" Width="1100"
+        Height="750" Width="1350" MinWidth="1350" MinHeight="750"
         Background="#111111" Foreground="#DDDDDD">
 
     <Window.Resources>
@@ -156,6 +156,9 @@
                                            Foreground="#AAAAAA" Margin="4,4,0,2"/>
                                 <TextBlock Grid.Row="0" Text="Percentage of time per frametime (more left is better)"
                                            FontSize="10" Foreground="#666666" Margin="4,22,0,0"/>
+                                <CheckBox Grid.Row="0" x:Name="ChkSyncDist" Content="Sync pan/zoom" IsChecked="True"
+                                          Foreground="#AAAAAA" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,8,0"
+                                          Checked="ChkSyncDist_Changed" Unchecked="ChkSyncDist_Changed"/>
                                 <oxy:PlotView Grid.Row="1" x:Name="ChartCpuDist" Background="#141414"/>
                             </Grid>
                         </Border>

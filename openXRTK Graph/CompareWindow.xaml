@@ -89,6 +89,13 @@
                         FontSize="13" Foreground="#40C8FF"/>
                 <TextBlock x:Name="TxtFileB" Margin="10,0,0,0" VerticalAlignment="Center"
                            FontSize="11" Foreground="#40C8FF" Text="not loaded"/>
+                <Border Width="1" Background="#333333" Margin="16,0" VerticalAlignment="Stretch"/>
+                <Button x:Name="BtnOpenC" Content="📂  Session C… (optional)" Click="BtnOpenC_Click"
+                        FontSize="13" Foreground="#5ADC5A"/>
+                <TextBlock x:Name="TxtFileC" Margin="10,0,0,0" VerticalAlignment="Center"
+                           FontSize="11" Foreground="#5ADC5A" Text="not loaded"/>
+                <Button x:Name="BtnClearC" Content="✕" Click="BtnClearC_Click" Margin="8,0,0,0" Padding="6,2"
+                        FontSize="11" ToolTip="Remove Session C" Visibility="Collapsed"/>
             </StackPanel>
         </Border>
 
@@ -106,6 +113,12 @@
                     <TextBlock Text="B" Foreground="#40C8FF" FontWeight="Bold" FontSize="11"
                                VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <TextBlock x:Name="TxtStatsB" Foreground="#60CCFF" FontSize="11" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel x:Name="StatsBarC" Orientation="Horizontal" Visibility="Collapsed" Margin="0,2,0,2">
+                    <Border Width="3" Background="#5ADC5A" CornerRadius="1" Margin="0,2,8,2"/>
+                    <TextBlock Text="C" Foreground="#5ADC5A" FontWeight="Bold" FontSize="11"
+                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock x:Name="TxtStatsC" Foreground="#90F090" FontSize="11" VerticalAlignment="Center"/>
                 </StackPanel>
             </StackPanel>
         </Border>
