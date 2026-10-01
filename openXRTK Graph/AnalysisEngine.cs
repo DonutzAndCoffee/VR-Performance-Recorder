@@ -430,6 +430,16 @@ public static class AnalysisEngine
 			sb.AppendLine(line.ToString());
 		}
 
+		if (sessions.Any(s => s.Meta?.XrPerfSession?.Layer is not null))
+		{
+			Header("Headset / Runtime (measured)");
+			SettingRow("Headset", sessions.Select(s => s.Meta?.XrPerfSession?.Layer?.SystemName is { Length: > 0 } h ? h : null).ToList(), false);
+			SettingRow("Refresh rate (Hz)", sessions.Select(s => HeadsetRate(s.Meta)).ToList(), false);
+			SettingRow("Render res / eye", sessions.Select(s => HeadsetResolution(s.Meta)).ToList(), false);
+		}
+
+		if (sessions.Any(s => s.Meta?.HasToolkitSettings == true))
+		{
 		Header("OpenXR Toolkit Settings");
 		SettingRow("Target rate (Hz)", sessions.Select(s => s.Meta?.TargetRate?.ToString()).ToList(), false);
 		SettingRow("Upscaling", sessions.Select(s =>
@@ -437,6 +447,7 @@ public static class AnalysisEngine
 		SettingRow("Sharpness", sessions.Select(s => s.Meta?.Sharpness?.ToString()).ToList(), false);
 		SettingRow("Render res", sessions.Select(s =>
 			s.Meta?.ResolutionWidth.HasValue == true ? $"{s.Meta.ResolutionWidth}×{s.Meta.ResolutionHeight}" : null).ToList(), false);
+		}
 
 		var gfx = sessions.Select(s => s.Meta?.GameSettings.GetValueOrDefault("Graphics Options")).ToList();
 		if (gfx.All(g => g is null)) return;
@@ -461,6 +472,8 @@ public static class AnalysisEngine
     private static void AppendOxrtkSettings(StringBuilder sb, SessionMetadata? meta)
     {
         if (meta is null) return;
+        AppendHeadsetInfo(sb, meta);
+        if (!meta.HasToolkitSettings) return;
         sb.AppendLine();
         sb.AppendLine("  OpenXR Toolkit Settings:");
         if (meta.TargetRate.HasValue)
@@ -474,6 +487,28 @@ public static class AnalysisEngine
             sb.AppendLine($"    HMD native: {meta.HmdResX} × {meta.HmdResY}");
         if (meta.Sharpness.HasValue)
             sb.AppendLine($"    Sharpness: {meta.Sharpness}");
+    }
+
+    private static string? HeadsetResolution(SessionMetadata? meta) =>
+        meta?.XrPerfSession?.Layer is { SwapchainWidth: > 0 } l ? $"{l.SwapchainWidth}×{l.SwapchainHeight}" : null;
+
+    private static string? HeadsetRate(SessionMetadata? meta) =>
+        meta?.XrPerfSession?.Layer is { DisplayRefreshRate: > 0 } l ? $"{l.DisplayRefreshRate:F0}" : null;
+
+    private static void AppendHeadsetInfo(StringBuilder sb, SessionMetadata meta)
+    {
+        var l = meta.XrPerfSession?.Layer;
+        if (l is null) return;
+        sb.AppendLine();
+        sb.AppendLine("  Headset / Runtime (measured):");
+        if (l.SystemName.Length > 0)
+            sb.AppendLine($"    Headset: {l.SystemName}");
+        if (l.RuntimeName.Length > 0)
+            sb.AppendLine($"    Runtime: {l.RuntimeName}");
+        if (l.DisplayRefreshRate > 0)
+            sb.AppendLine($"    Refresh rate: {l.DisplayRefreshRate:F0} Hz   Frame budget: {1000.0 / l.DisplayRefreshRate:F2} ms");
+        if (l.SwapchainWidth > 0)
+            sb.AppendLine($"    Render resolution: {l.SwapchainWidth} × {l.SwapchainHeight} per eye");
     }
 
     private static void AppendIRacingGraphicsSnippet(StringBuilder sb, SessionMetadata? meta)

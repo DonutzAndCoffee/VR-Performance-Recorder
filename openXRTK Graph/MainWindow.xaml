@@ -298,6 +298,32 @@
                     </Border>
                 </Grid>
             </TabItem>
+            <TabItem Header="Frame Analysis">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="#1A1A1A" BorderBrush="#333333" BorderThickness="0,0,0,1" Padding="10,8">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Frames file:" VerticalAlignment="Center" Foreground="#AAAAAA"/>
+                            <TextBlock x:Name="TxtFramesPath" Margin="8,0,0,0" VerticalAlignment="Center"
+                                       FontSize="11" Foreground="#888888" Text="None"/>
+                            <TextBlock Text="Refresh rate (Hz):" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="#AAAAAA"/>
+                            <TextBox x:Name="TxtFramesHz" Width="60" Margin="4,0,0,0" Text="90" VerticalAlignment="Center"
+                                     Background="#2A2A2A" Foreground="#DDDDDD" BorderBrush="#444444" Padding="4"/>
+                            <Button x:Name="BtnAnalyzeFrames" Content="&#x26A1; Analyze" Click="BtnAnalyzeFrames_Click" Margin="16,0,0,0" FontSize="11"/>
+                            <Button x:Name="BtnOpenFrames" Content="&#x1F4C2; Open frames CSV…" Click="BtnOpenFrames_Click" Margin="6,0,0,0" FontSize="11"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Row="1" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="0,1,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Padding="12,10">
+                            <TextBlock x:Name="TxtFramesReport" FontFamily="Consolas" FontSize="11" Foreground="#BBBBBB" LineHeight="18"
+                                       Text="Load a session recorded with per-frame data (or open a _frames.csv)."/>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
         </TabControl>
     </Grid>
 </Window>

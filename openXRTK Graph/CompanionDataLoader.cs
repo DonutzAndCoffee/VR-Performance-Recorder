@@ -46,6 +46,7 @@ public static class CompanionDataLoader
                 var s = root?["OpenXRToolkitSettings"];
                 if (s is not null)
                 {
+                    meta.HasToolkitSettings = true;
                     meta.TargetRate      = s["target_rate"]?.GetValue<int>();
                     meta.Scaling         = s["scaling"]?.GetValue<int>();
                     meta.Sharpness       = s["sharpness"]?.GetValue<int>();
@@ -100,11 +101,6 @@ public static class CompanionDataLoader
                         meta.RunningApp = session.Layer?.AppName ?? "";
                     if (meta.RecordedAt == default)
                         meta.RecordedAt = session.RecordedAt;
-                    if (meta.ResolutionWidth is null && session.Layer is { SwapchainWidth: > 0 } layer)
-                    {
-                        meta.ResolutionWidth = (int)layer.SwapchainWidth;
-                        meta.ResolutionHeight = (int)layer.SwapchainHeight;
-                    }
                 }
             }
             catch (JsonException) { }

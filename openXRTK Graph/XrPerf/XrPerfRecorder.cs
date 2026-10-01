@@ -175,8 +175,21 @@ public sealed class XrPerfRecorder : IDisposable
 
         _csv.Dispose();
         _csv = null;
-        _framesCsv?.Dispose();
-        _framesCsv = null;
+        if (_framesCsv is not null)
+        {
+            string? framesPath = (_framesCsv.BaseStream as FileStream)?.Name;
+            _framesCsv.Dispose();
+            _framesCsv = null;
+            double hz = (_session?.Layer ?? LayerInfo)?.DisplayRefreshRate ?? 0;
+            if (framesPath is not null)
+            {
+                _ = Task.Run(() =>
+                {
+                    try { FramesAnalyzer.Analyze(framesPath, hz > 0 ? hz : FramesAnalyzer.EstimateRefreshRate(framesPath)); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                });
+            }
+        }
         _rowInterval = TimeSpan.FromMilliseconds(DefaultRowIntervalMs);
         _resetSchedule = true;
 

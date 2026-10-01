@@ -20,6 +20,15 @@ public sealed class OpenVrReader : IDisposable
     private const string CompositorVersion = "FnTable:IVRCompositor_029";
     private const int FnGetFrameTimings = 11;
     private const int FnGetCurrentSceneFocusProcess = 24;
+
+    // IVRSystem_022 function table (openvr_api.cs).
+    private const string SystemVersion = "FnTable:IVRSystem_022";
+    private const int FnGetRecommendedRenderTargetSize = 0;
+    private const int FnGetFloatTrackedDeviceProperty = 22;
+    private const int FnGetStringTrackedDeviceProperty = 27;
+    private const uint HmdDeviceIndex = 0;
+    private const int Prop_ModelNumber_String = 1001;
+    private const int Prop_DisplayFrequency_Float = 2002;
     private const int VRApplication_Background = 3;
     private const int MaxFramesPerPoll = 128;
     private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(3);
@@ -30,6 +39,9 @@ public sealed class OpenVrReader : IDisposable
 
     private GetFrameTimingsFn? _getFrameTimings;
     private GetCurrentSceneFocusProcessFn? _getFocusProcess;
+    private GetRecommendedRenderTargetSizeFn? _getRenderTargetSize;
+    private GetFloatTrackedDevicePropertyFn? _getFloatProp;
+    private GetStringTrackedDevicePropertyFn? _getStringProp;
     private Compositor_FrameTiming[] _timings = new Compositor_FrameTiming[MaxFramesPerPoll];
     private DateTime _nextConnectAttemptUtc;
     private DateTime _lastNewFrameUtc;
@@ -76,6 +88,18 @@ public sealed class OpenVrReader : IDisposable
                 Marshal.ReadIntPtr(table, FnGetFrameTimings * IntPtr.Size));
             _getFocusProcess = Marshal.GetDelegateForFunctionPointer<GetCurrentSceneFocusProcessFn>(
                 Marshal.ReadIntPtr(table, FnGetCurrentSceneFocusProcess * IntPtr.Size));
+
+            int sysError = 0;
+            IntPtr sys = Native.VR_GetGenericInterface(SystemVersion, ref sysError);
+            if (sysError == 0 && sys != IntPtr.Zero)
+            {
+                _getRenderTargetSize = Marshal.GetDelegateForFunctionPointer<GetRecommendedRenderTargetSizeFn>(
+                    Marshal.ReadIntPtr(sys, FnGetRecommendedRenderTargetSize * IntPtr.Size));
+                _getFloatProp = Marshal.GetDelegateForFunctionPointer<GetFloatTrackedDevicePropertyFn>(
+                    Marshal.ReadIntPtr(sys, FnGetFloatTrackedDeviceProperty * IntPtr.Size));
+                _getStringProp = Marshal.GetDelegateForFunctionPointer<GetStringTrackedDevicePropertyFn>(
+                    Marshal.ReadIntPtr(sys, FnGetStringTrackedDeviceProperty * IntPtr.Size));
+            }
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
         {
@@ -96,6 +120,9 @@ public sealed class OpenVrReader : IDisposable
         if (_getFrameTimings is null) return;
         _getFrameTimings = null;
         _getFocusProcess = null;
+        _getRenderTargetSize = null;
+        _getFloatProp = null;
+        _getStringProp = null;
         _info = null;
         try { Native.VR_ShutdownInternal(); } catch (DllNotFoundException) { }
     }
@@ -106,7 +133,11 @@ public sealed class OpenVrReader : IDisposable
 
         uint pid = _getFocusProcess();
         if (pid == 0) return null;
-        if (_info is not null && pid == _focusPid) return _info;
+        if (_info is not null && pid == _focusPid)
+        {
+            FillHmdInfo(_info);
+            return _info;
+        }
 
         _focusPid = pid;
         string appName = string.Empty;
@@ -124,7 +155,41 @@ public sealed class OpenVrReader : IDisposable
             AppName = appName,
             RuntimeName = "SteamVR (OpenVR)",
         };
+        FillHmdInfo(_info);
         return _info;
+    }
+
+    /// <summary>Reads refresh rate, per-eye render resolution (incl. SteamVR supersampling) and HMD model.</summary>
+    private void FillHmdInfo(LayerSessionInfo info)
+    {
+        try
+        {
+            if (_getFloatProp is not null)
+            {
+                int err = 0;
+                float hz = _getFloatProp(HmdDeviceIndex, Prop_DisplayFrequency_Float, ref err);
+                if (err == 0 && hz > 0) info.DisplayRefreshRate = hz;
+            }
+            if (_getRenderTargetSize is not null)
+            {
+                uint w = 0, h = 0;
+                _getRenderTargetSize(ref w, ref h);
+                if (w > 0 && h > 0)
+                {
+                    info.SwapchainWidth = w;
+                    info.SwapchainHeight = h;
+                    info.ViewCount = 2;
+                }
+            }
+            if (_getStringProp is not null && info.SystemName.Length == 0)
+            {
+                int err = 0;
+                var sb = new System.Text.StringBuilder(256);
+                _getStringProp(HmdDeviceIndex, Prop_ModelNumber_String, sb, (uint)sb.Capacity, ref err);
+                if (err == 0) info.SystemName = sb.ToString();
+            }
+        }
+        catch (Exception ex) when (ex is AccessViolationException or SEHException) { }
     }
 
     /// <summary>Appends all frames completed since the last call to <paramref name="target"/>.</summary>
@@ -224,6 +289,15 @@ public sealed class OpenVrReader : IDisposable
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     private delegate uint GetCurrentSceneFocusProcessFn();
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    private delegate void GetRecommendedRenderTargetSizeFn(ref uint width, ref uint height);
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    private delegate float GetFloatTrackedDevicePropertyFn(uint deviceIndex, int prop, ref int error);
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    private delegate uint GetStringTrackedDevicePropertyFn(uint deviceIndex, int prop, System.Text.StringBuilder value, uint bufferSize, ref int error);
 
     private static class Native
     {

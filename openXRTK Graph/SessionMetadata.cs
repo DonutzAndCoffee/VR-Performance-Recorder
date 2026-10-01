@@ -8,6 +8,7 @@ public class SessionMetadata
     public DateTimeOffset RecordedAt { get; set; }
 
     // From _openxrtk.json
+    public bool HasToolkitSettings { get; set; }
     public int? TargetRate { get; set; }
     public int? Scaling { get; set; }
     public int? Sharpness { get; set; }

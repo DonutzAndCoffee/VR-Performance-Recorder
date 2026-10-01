@@ -147,11 +147,111 @@ public partial class MainWindow : Window
             TxtFilePath.Text = System.IO.Path.GetFileName(fileName);
             UpdateStats();
             UpdateCharts();
+            LoadFramesAnalysis(fileName);
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to load file:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private string? _framesPath;
+
+    private void LoadFramesAnalysis(string sessionCsvPath)
+    {
+        _framesPath = XrPerf.FramesAnalyzer.FindFramesFile(sessionCsvPath);
+        TxtFramesPath.Text = _framesPath is null ? "None (session recorded without per-frame data)" : System.IO.Path.GetFileName(_framesPath);
+        if (_framesPath is null)
+        {
+            TxtFramesReport.Text = "No _frames.csv found for this session.";
+            return;
+        }
+        SetDetectedRefreshRate(TryReadRefreshRate(sessionCsvPath));
+        _hmdInfo = TryReadHmdInfo(sessionCsvPath);
+        RunFramesAnalysis();
+    }
+
+    private string _hmdInfo = "";
+
+    private static string TryReadHmdInfo(string sessionCsvPath)
+    {
+        try
+        {
+            string json = XrPerf.XrPerfRecorder.GetCompanionPath(sessionCsvPath);
+            if (!System.IO.File.Exists(json)) return "";
+            using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(json));
+            if (!doc.RootElement.TryGetProperty("Layer", out var l) || l.ValueKind != System.Text.Json.JsonValueKind.Object) return "";
+            string S(string n) => l.TryGetProperty(n, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() ?? "" : "";
+            double D(string n) => l.TryGetProperty(n, out var v) && v.TryGetDouble(out double d) ? d : 0;
+
+            var parts = new List<string>();
+            if (S("SystemName") is { Length: > 0 } hmd) parts.Add($"Headset: {hmd}");
+            if (D("DisplayRefreshRate") is > 0 and var hz) parts.Add($"{hz:F0} Hz");
+            if (D("SwapchainWidth") is > 0 and var w && D("SwapchainHeight") is > 0 and var h)
+            {
+                double mp = w * h * Math.Max(1, D("ViewCount")) / 1e6;
+                parts.Add($"Render resolution {w:F0} x {h:F0} per eye ({mp:F1} MPixel total)");
+            }
+            if (S("RuntimeName") is { Length: > 0 } rt) parts.Add($"Runtime: {rt}");
+            return parts.Count > 0 ? string.Join(" | ", parts) + Environment.NewLine : "";
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or System.Text.Json.JsonException) { return ""; }
+    }
+
+    private static double? TryReadRefreshRate(string sessionCsvPath)
+    {
+        try
+        {
+            string json = XrPerf.XrPerfRecorder.GetCompanionPath(sessionCsvPath);
+            if (!System.IO.File.Exists(json)) return null;
+            using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(json));
+            if (doc.RootElement.TryGetProperty("Layer", out var layer) && layer.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                layer.TryGetProperty("DisplayRefreshRate", out var hz) && hz.TryGetDouble(out double v) && v > 0)
+                return v;
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or System.Text.Json.JsonException) { }
+        return null;
+    }
+
+    private void RunFramesAnalysis()
+    {
+        if (_framesPath is null) return;
+        double.TryParse(TxtFramesHz.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double hz);
+        try
+        {
+            TxtFramesReport.Text = _hmdInfo + XrPerf.FramesAnalyzer.BuildVerdict(_framesPath, hz) + Environment.NewLine
+                + XrPerf.FramesAnalyzer.BuildReport(_framesPath, hz);
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            TxtFramesReport.Text = $"Failed to read frames file:\n{ex.Message}";
+        }
+    }
+
+    private void BtnAnalyzeFrames_Click(object sender, RoutedEventArgs e) => RunFramesAnalysis();
+
+    private void BtnOpenFrames_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = "Open per-frame CSV",
+            Filter = "Frames CSV (*_frames.csv)|*_frames.csv|All files (*.*)|*.*",
+            CheckFileExists = true,
+        };
+        if (dlg.ShowDialog() != true) return;
+        _framesPath = dlg.FileName;
+        TxtFramesPath.Text = System.IO.Path.GetFileName(_framesPath);
+        _hmdInfo = "";
+        SetDetectedRefreshRate(null);
+        RunFramesAnalysis();
+    }
+
+    private void SetDetectedRefreshRate(double? fromSession)
+    {
+        if (_framesPath is null) return;
+        double hz = fromSession ?? XrPerf.FramesAnalyzer.EstimateRefreshRate(_framesPath);
+        if (hz > 0)
+            TxtFramesHz.Text = Math.Round(hz).ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private void BtnStartLog_Click(object sender, RoutedEventArgs e)
