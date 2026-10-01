@@ -104,6 +104,8 @@ public static class ChartBuilder
         var yAxis = CreateLinearAxis(AxisPosition.Left, "Percentage (%)");
         yAxis.Minimum = 0;
         yAxis.AbsoluteMinimum = 0;
+        yAxis.IsZoomEnabled = false;
+        yAxis.IsPanEnabled = false;
         model.Axes.Add(yAxis);
 
         AddFramerateMarkers(model, xAxis);
@@ -356,6 +358,8 @@ public static class ChartBuilder
         model.Axes.Add(xAxis);
         var yAxis = CreateLinearAxis(AxisPosition.Left, "Percentage (%)");
         yAxis.Minimum = 0;
+        yAxis.IsZoomEnabled = false;
+        yAxis.IsPanEnabled = false;
         model.Axes.Add(yAxis);
         AddFramerateMarkers(model, xAxis);
 

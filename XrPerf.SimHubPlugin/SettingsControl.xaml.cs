@@ -53,7 +53,7 @@ namespace XrPerf.SimHubPlugin
             else if (st.IsRecording)
                 TxtStatus.Text = $"Recording {st.RecordingSeconds:F0}s - {st.AppName} - {st.CurrentFps:F1} FPS - lap {st.CurrentLap}";
             else
-                TxtStatus.Text = st.LayerConnected ? $"Idle - layer connected ({st.AppName}, {st.RuntimeName})" : "Idle - no OpenXR app detected";
+                TxtStatus.Text = st.LayerConnected ? $"Idle - layer connected ({st.AppName}, {st.RuntimeName})" : "Idle - no OpenXR/OpenVR app detected";
         }
 
         private void BtnStart_Click(object sender, RoutedEventArgs e) => _plugin.StartRecording();

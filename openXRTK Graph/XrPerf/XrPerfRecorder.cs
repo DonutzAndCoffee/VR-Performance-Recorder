@@ -36,6 +36,7 @@ public sealed class XrPerfRecorder : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _loop;
     private readonly ShmReader _reader = new();
+    private readonly OpenVrReader _openVr = new();
     private readonly SystemSampler _sampler = new();
     private readonly FrameAggregator _aggregator = new();
     private readonly List<FrameSample> _buffer = new(1024);
@@ -83,7 +84,7 @@ public sealed class XrPerfRecorder : IDisposable
             return new RecorderStatus
             {
                 IsRecording = _csv is not null,
-                LayerConnected = _reader.IsConnected,
+                LayerConnected = _reader.IsConnected || _openVr.IsConnected,
                 AppName = LayerInfo?.AppName,
                 RuntimeName = LayerInfo?.RuntimeName,
                 CurrentFps = Math.Round(CurrentFps, 1),
@@ -242,26 +243,45 @@ public sealed class XrPerfRecorder : IDisposable
 
     private void PollFrames()
     {
-        bool wasConnected = _reader.IsConnected;
-        if (!_reader.TryConnect())
+        // Prefer the OpenXR layer; fall back to SteamVR compositor timings for native OpenVR titles.
+        FrameSource previous = _activeSource;
+        FrameSource current = FrameSource.None;
+        if (_reader.TryConnect())
         {
-            if (wasConnected)
-            {
-                _aggregator.Reset();
-                _sampler.TargetProcessId = 0;
-            }
-            return;
+            current = FrameSource.OpenXr;
+            _openVr.Disconnect();
         }
+        else if (_openVr.TryConnect())
+        {
+            current = FrameSource.OpenVr;
+        }
+        _activeSource = current;
 
-        if (!wasConnected) _aggregator.Reset();
+        if (current != previous)
+        {
+            _aggregator.Reset();
+            _prevWaitQpc = 0;
+            lock (_lock) _sessionStartQpc = 0;
+            if (current == FrameSource.None) _sampler.TargetProcessId = 0;
+        }
+        if (current == FrameSource.None) return;
 
-        var info = _reader.ReadSessionInfo();
+        var info = current == FrameSource.OpenXr ? _reader.ReadSessionInfo() : _openVr.ReadSessionInfo();
         LayerInfo = info;
         if (info is not null) _sampler.TargetProcessId = info.ProcessId;
 
         _buffer.Clear();
-        _reader.ReadNewSamples(_buffer);
-        long freq = _reader.QpcFrequency;
+        long freq;
+        if (current == FrameSource.OpenXr)
+        {
+            _reader.ReadNewSamples(_buffer);
+            freq = _reader.QpcFrequency;
+        }
+        else
+        {
+            _openVr.ReadNewSamples(_buffer);
+            freq = OpenVrReader.QpcFrequency;
+        }
         foreach (var sample in _buffer) _aggregator.Add(sample, freq);
 
         lock (_lock)
@@ -277,6 +297,9 @@ public sealed class XrPerfRecorder : IDisposable
     public const string FramesHeader = "frame,t (ms),frametime (ms),appCPU (us),renderCPU (us),appGPU (us),gpuValid,lap";
 
     private long _prevWaitQpc;
+
+    private enum FrameSource { None, OpenXr, OpenVr }
+    private FrameSource _activeSource;
 
     internal string FormatFrame(FrameSample s, long freq, long startQpc, int lap)
     {
@@ -383,6 +406,7 @@ public sealed class XrPerfRecorder : IDisposable
         catch (AggregateException) { }
         Stop();
         _reader.Dispose();
+        _openVr.Dispose();
         _sampler.Dispose();
         _cts.Dispose();
     }
