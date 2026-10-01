@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Timers;
 
 namespace openXRTK_Graph;
@@ -13,6 +14,7 @@ public sealed class LiveProcessLogger : IDisposable
     public string LogFilePath { get; }
     private readonly Dictionary<int, long> _lastCpuTime = new();
     private DateTime _lastCheck = DateTime.UtcNow;
+    private int _busy;
 
     public LiveProcessLogger(int intervalMs = 1000, string? directory = null)
     {
@@ -43,64 +45,66 @@ public sealed class LiveProcessLogger : IDisposable
 
     private void Timer_Elapsed(object? sender, ElapsedEventArgs e)
     {
+        // Skip tick if previous one is still running (avoid overlapping work)
+        if (Interlocked.Exchange(ref _busy, 1) == 1) return;
+        var procs = Array.Empty<Process>();
         try
         {
-            var ts = DateTime.UtcNow.ToString("o");
             var now = DateTime.UtcNow;
+            var ts = now.ToString("o");
             var elapsed = (now - _lastCheck).TotalSeconds;
             _lastCheck = now;
+            if (elapsed <= 0) return;
 
-            var procs = Process.GetProcesses()
-                .Where(p => p.ProcessName.Length > 0)
-                .OrderByDescending(p =>
-                {
-                    try { return p.TotalProcessorTime.TotalMilliseconds; }
-                    catch { return 0; }
-                })
-                .Take(20) // Top 20 by CPU time
-                .ToList();
+            procs = Process.GetProcesses();
+            var samples = new List<(string Name, int Pid, double Cpu, long RamMb, int Threads)>(procs.Length);
+            var seen = new HashSet<int>();
 
             foreach (var proc in procs)
             {
                 try
                 {
+                    int pid = proc.Id;
                     long cpuMs = (long)proc.TotalProcessorTime.TotalMilliseconds;
+                    seen.Add(pid);
                     double cpuPct = 0;
-
-                    // Calculate CPU% from delta
-                    if (_lastCpuTime.TryGetValue(proc.Id, out var lastCpu))
+                    if (_lastCpuTime.TryGetValue(pid, out var lastCpu))
                     {
-                        long delta = cpuMs - lastCpu;
-                        // CPU% = (delta milliseconds / elapsed seconds / processor count) * 100
-                        cpuPct = (delta / 1000.0 / elapsed) / Environment.ProcessorCount * 100;
-                        cpuPct = Math.Max(0, Math.Min(100, cpuPct)); // Clamp to 0-100
+                        cpuPct = ((cpuMs - lastCpu) / 1000.0 / elapsed) / Environment.ProcessorCount * 100;
+                        cpuPct = Math.Max(0, Math.Min(100, cpuPct));
                     }
-                    _lastCpuTime[proc.Id] = cpuMs;
+                    _lastCpuTime[pid] = cpuMs;
 
-                    long ramMb = proc.WorkingSet64 / 1024 / 1024;
-                    int threads = proc.Threads.Count;
-
-                    AppendLine(ts, proc.ProcessName, proc.Id, cpuPct, ramMb, threads);
+                    samples.Add((proc.ProcessName, pid, cpuPct, proc.WorkingSet64 / 1024 / 1024, proc.Threads.Count));
                 }
-                catch { /* Skip if process exited */ }
+                catch { /* access denied or process exited */ }
+            }
+
+            // Drop stale PIDs
+            foreach (var pid in _lastCpuTime.Keys.Where(k => !seen.Contains(k)).ToList())
+                _lastCpuTime.Remove(pid);
+
+            var sb = new StringBuilder();
+            foreach (var s in samples.OrderByDescending(s => s.Cpu).ThenByDescending(s => s.RamMb).Take(20))
+            {
+                sb.Append(Escape(ts)).Append(',')
+                  .Append(Escape(s.Name)).Append(',')
+                  .Append(s.Pid).Append(',')
+                  .Append(s.Cpu.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+                  .Append(s.RamMb).Append(',')
+                  .Append(s.Threads).Append(Environment.NewLine);
+            }
+
+            lock (_fileLock)
+            {
+                File.AppendAllText(LogFilePath, sb.ToString(), Encoding.UTF8);
             }
         }
         catch { /* best-effort logger */ }
-    }
-
-    private void AppendLine(string timestampUtc, string processName, int pid, double cpuPercent, long workingSetMb, int threadCount)
-    {
-        var line = string.Join(",",
-            Escape(timestampUtc),
-            Escape(processName),
-            pid,
-            cpuPercent.ToString("F2"),
-            workingSetMb,
-            threadCount);
-
-        lock (_fileLock)
+        finally
         {
-            File.AppendAllText(LogFilePath, line + Environment.NewLine, Encoding.UTF8);
+            foreach (var p in procs) p.Dispose();
+            Interlocked.Exchange(ref _busy, 0);
         }
     }
 
