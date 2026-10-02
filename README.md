@@ -32,6 +32,13 @@ It works with **OpenXR** games and with native **OpenVR/SteamVR** games. It can 
 - **Update checker** – tells you when a new version is available on GitHub.
 
 ---
+### Screenshots
+
+<img width="1336" height="743" alt="image" src="https://github.com/user-attachments/assets/3008fd0a-5edb-4d12-b5c9-3c945e7e092e" />
+<img width="1668" height="1157" alt="image" src="https://github.com/user-attachments/assets/7d665b31-3f95-4fdb-8409-049dfe8276b4" />
+<img width="1632" height="1102" alt="image" src="https://github.com/user-attachments/assets/4861a8d1-4e3e-4951-bea7-ab31d1f0651a" />
+
+---
 
 ## Requirements
 
