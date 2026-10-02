@@ -140,7 +140,7 @@ Open `openXRTK Graph.slnx` and build the solution.
 ## Community & support
 
 - Bug reports and feature requests: [GitHub Issues](https://github.com/DonutzAndCoffee/openXRTK-Graph/issues)
-- Discord: [https://discord.gg/KuSsEYg83k](https://discord.gg/KuSsEYg83k)
+- Discord: [https://discord.com/invite/KuSsEYgB3k](https://discord.com/invite/KuSsEYgB3k)
 
 ---
 
