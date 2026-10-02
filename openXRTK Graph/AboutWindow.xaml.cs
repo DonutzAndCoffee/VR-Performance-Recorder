@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Documents;
+using System.Windows.Media;
 using System.Windows.Navigation;
 
 namespace openXRTK_Graph;
@@ -11,8 +13,37 @@ public partial class AboutWindow : Window
     public AboutWindow()
     {
         InitializeComponent();
-        var version = Assembly.GetExecutingAssembly().GetName().Version;
-        VersionText.Text = version is null ? string.Empty : $"Version {version.ToString(3)}";
+        VersionText.Text = $"Version {UpdateChecker.CurrentVersion.ToString(3)}";
+        Loaded += async (_, _) => await CheckForUpdatesAsync();
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        UpdateText.Text = "Checking for updates...";
+        try
+        {
+            var result = await UpdateChecker.CheckAsync();
+            UpdateText.Inlines.Clear();
+            if (result.NoReleaseYet || result.Latest is null)
+            {
+                UpdateText.Text = "No published release found on GitHub yet.";
+            }
+            else if (result.UpdateAvailable)
+            {
+                UpdateText.Inlines.Add(new Run($"Update available: {result.Latest.ToString(3)} ") { Foreground = Brushes.Orange });
+                var link = new Hyperlink(new Run("Download")) { NavigateUri = new Uri(result.ReleaseUrl ?? UpdateChecker.ReleasesUrl) };
+                link.RequestNavigate += Hyperlink_RequestNavigate;
+                UpdateText.Inlines.Add(link);
+            }
+            else
+            {
+                UpdateText.Text = $"You are up to date (latest release: {result.Latest.ToString(3)}).";
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateText.Text = $"Update check failed: {ex.Message}";
+        }
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();

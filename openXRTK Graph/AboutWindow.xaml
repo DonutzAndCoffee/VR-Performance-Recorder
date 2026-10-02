@@ -29,7 +29,10 @@
             </StackPanel>
         </StackPanel>
 
-        <TextBlock Grid.Row="1" x:Name="VersionText" Margin="0,8,0,16"/>
+        <StackPanel Grid.Row="1" Margin="0,8,0,16">
+            <TextBlock x:Name="VersionText"/>
+            <TextBlock x:Name="UpdateText" Margin="0,4,0,0" TextWrapping="Wrap"/>
+        </StackPanel>
 
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
             <StackPanel>
