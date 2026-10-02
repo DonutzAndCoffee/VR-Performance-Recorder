@@ -2,6 +2,7 @@
 // Hooks the frame loop and publishes per-frame timings via shared memory (see docs/XrPerf-Protocol.md).
 
 #include "gpu_timer_d3d11.h"
+#include "overlay_d3d11.h"
 #include "shared_memory.h"
 
 #include <d3d11.h>
@@ -14,6 +15,7 @@
 #include <algorithm>
 #include <cstring>
 #include <mutex>
+#include <vector>
 
 #define LAYER_NAME "XR_APILAYER_DONUTZ_xrperf"
 
@@ -27,8 +29,12 @@ struct LayerState {
 	XrSession session = XR_NULL_HANDLE;
 	SharedMemoryWriter shm;
 	GpuTimerD3D11 gpuTimerD3D11;
+	OverlayD3D11 overlay;
+	OverlayDispatch overlayDispatch;
+	std::vector<const XrCompositionLayerBaseHeader*> layerScratch;
 	uint32_t lastGpuUs = 0;
 	bool lastGpuValid = false;
+	uint32_t lastRenderCpuUs = 0;
 
 	char appName[64] = {};
 	char engineName[64] = {};
@@ -126,6 +132,7 @@ XRAPI_ATTR XrResult XRAPI_CALL Hook_xrCreateSession(XrInstance instance, const X
 
 	if (const XrGraphicsBindingD3D11KHR* d3d11 = FindD3D11Binding(createInfo->next)) {
 		g_state.gpuTimerD3D11.Initialize(d3d11->device);
+		g_state.overlay.Initialize(d3d11->device, *session, g_state.overlayDispatch);
 	}
 
 	if (!g_state.shm.Open()) {
@@ -150,6 +157,12 @@ XRAPI_ATTR XrResult XRAPI_CALL Hook_xrCreateSession(XrInstance instance, const X
 }
 
 XRAPI_ATTR XrResult XRAPI_CALL Hook_xrDestroySession(XrSession session) {
+	{
+		std::lock_guard lock(g_state.mutex);
+		if (session == g_state.session) {
+			g_state.overlay.Shutdown();
+		}
+	}
 	const XrResult result = g_state.nextDestroySession(session);
 
 	std::lock_guard lock(g_state.mutex);
@@ -232,14 +245,46 @@ XRAPI_ATTR XrResult XRAPI_CALL Hook_xrBeginFrame(XrSession session, const XrFram
 
 XRAPI_ATTR XrResult XRAPI_CALL Hook_xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo) {
 	const int64_t endStart = Now();
+	XrFrameEndInfo patchedEndInfo{};
 	{
 		std::lock_guard lock(g_state.mutex);
 		g_state.gpuTimerD3D11.EndFrame();
+
+		if (session == g_state.session && frameEndInfo && frameEndInfo->layerCount > 0) {
+			LARGE_INTEGER freq{};
+			QueryPerformanceFrequency(&freq);
+			OverlayFrameInfo info;
+			info.frameQpc = endStart;
+			info.qpcFrequency = freq.QuadPart;
+			info.appCpuUs = g_state.lastBeginQpc ? static_cast<uint32_t>(((endStart - g_state.lastBeginQpc) * 1000000) / freq.QuadPart) : 0;
+			info.renderCpuUs = g_state.lastRenderCpuUs;
+			info.gpuUs = g_state.lastGpuUs;
+			info.gpuValid = g_state.lastGpuValid;
+			info.appName = g_state.appName;
+			if (const Header* header = g_state.shm.GetHeader()) {
+				info.refreshRate = header->displayRefreshRate;
+				info.width = header->swapchainWidth;
+				info.height = header->swapchainHeight;
+			}
+			const XrCompositionLayerBaseHeader* quad = g_state.overlay.OnFrame(info);
+			if (Header* header = g_state.shm.GetHeader()) {
+				header->overlayStatus = static_cast<uint32_t>(g_state.overlay.GetStatus());
+			}
+			if (quad) {
+				g_state.layerScratch.assign(frameEndInfo->layers, frameEndInfo->layers + frameEndInfo->layerCount);
+				g_state.layerScratch.push_back(quad);
+				patchedEndInfo = *frameEndInfo;
+				patchedEndInfo.layerCount = static_cast<uint32_t>(g_state.layerScratch.size());
+				patchedEndInfo.layers = g_state.layerScratch.data();
+				frameEndInfo = &patchedEndInfo;
+			}
+		}
 	}
 	const XrResult result = g_state.nextEndFrame(session, frameEndInfo);
 	const int64_t endDone = Now();
 
 	std::lock_guard lock(g_state.mutex);
+	g_state.lastRenderCpuUs = QpcToUs(endDone - endStart);
 	if (!g_state.shm.IsOpen() || session != g_state.session) {
 		return result;
 	}
@@ -286,7 +331,7 @@ XRAPI_ATTR XrResult XRAPI_CALL Hook_xrEndFrame(XrSession session, const XrFrameE
 	}
 
 	if (g_state.predictedDisplayPeriod > 0) {
-		g_state.shm.GetHeader()->displayRefreshRate
+		g_state.shm.GetHeader()->displayRefreshRate = static_cast<float>(1e9 / static_cast<double>(g_state.predictedDisplayPeriod));
 	}
 	return result;
 }
@@ -294,6 +339,7 @@ XRAPI_ATTR XrResult XRAPI_CALL Hook_xrEndFrame(XrSession session, const XrFrameE
 XRAPI_ATTR XrResult XRAPI_CALL Hook_xrDestroyInstance(XrInstance instance) {
 	{
 		std::lock_guard lock(g_state.mutex);
+		g_state.overlay.Shutdown();
 		g_state.gpuTimerD3D11.Shutdown();
 		g_state.shm.Close();
 		g_state.session = XR_NULL_HANDLE;
@@ -360,6 +406,17 @@ XRAPI_ATTR XrResult XRAPI_CALL Layer_xrCreateApiLayerInstance(const XrInstanceCr
 	Resolve(*instance, "xrEndFrame", g_state.nextEndFrame);
 	Resolve(*instance, "xrGetSystemProperties", g_state.nextGetSystemProperties);
 	Resolve(*instance, "xrGetInstanceProperties", g_state.nextGetInstanceProperties);
+
+	OverlayDispatch& od = g_state.overlayDispatch;
+	od.createSwapchain = g_state.nextCreateSwapchain;
+	Resolve(*instance, "xrEnumerateSwapchainFormats", od.enumerateSwapchainFormats);
+	Resolve(*instance, "xrDestroySwapchain", od.destroySwapchain);
+	Resolve(*instance, "xrEnumerateSwapchainImages", od.enumerateSwapchainImages);
+	Resolve(*instance, "xrAcquireSwapchainImage", od.acquireSwapchainImage);
+	Resolve(*instance, "xrWaitSwapchainImage", od.waitSwapchainImage);
+	Resolve(*instance, "xrReleaseSwapchainImage", od.releaseSwapchainImage);
+	Resolve(*instance, "xrCreateReferenceSpace", od.createReferenceSpace);
+	Resolve(*instance, "xrDestroySpace", od.destroySpace);
 
 	CopyString(g_state.appName, info->applicationInfo.applicationName);
 	CopyString(g_state.engineName, info->applicationInfo.engineName);

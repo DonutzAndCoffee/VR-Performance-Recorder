@@ -7,7 +7,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\app.ico" />
+    <Resource Include="Resources\AppIcon.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
@@ -18,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\bin\x64\Release\XrPerfLayer.dll;..\bin\x64\Release\XrPerfLayer.json" Condition="Exists('..\bin\x64\Release\XrPerfLayer.dll')" Link="XrPerfLayer\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\bin\x64\$(Configuration)\XrPerfLayer.dll;..\bin\x64\$(Configuration)\XrPerfLayer.json" Condition="Exists('..\bin\x64\$(Configuration)\XrPerfLayer.dll')" Link="XrPerfLayer\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

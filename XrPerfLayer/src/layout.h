@@ -37,7 +37,7 @@ struct Header {
 	float fovLeft[4];
 	float fovRight[4];
 	uint32_t sessionState;
-	uint32_t reserved0;
+	uint32_t overlayStatus;
 	char appName[64];
 	char engineName[64];
 	char runtimeName[64];

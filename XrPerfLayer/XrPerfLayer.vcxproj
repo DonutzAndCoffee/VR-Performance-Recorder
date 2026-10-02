@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -45,7 +45,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>d3d11.lib;d3d12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d11.lib;d3d12.lib;gdi32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
@@ -70,11 +70,13 @@
   <ItemGroup>
     <ClCompile Include="src\gpu_timer_d3d11.cpp" />
     <ClCompile Include="src\layer.cpp" />
+    <ClCompile Include="src\overlay_d3d11.cpp" />
     <ClCompile Include="src\shared_memory.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\gpu_timer_d3d11.h" />
     <ClInclude Include="src\layout.h" />
+    <ClInclude Include="src\overlay_d3d11.h" />
     <ClInclude Include="src\shared_memory.h" />
   </ItemGroup>
   <ItemGroup>

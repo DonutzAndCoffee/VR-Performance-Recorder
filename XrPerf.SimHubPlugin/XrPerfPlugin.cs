@@ -49,6 +49,9 @@ namespace XrPerf.SimHubPlugin
         public string LastError { get; private set; } = string.Empty;
 
         private readonly XrPerfClient _client = new XrPerfClient();
+        private readonly LiveStatsReader _liveReader = new LiveStatsReader();
+        private LiveStats _live = new LiveStats();
+        private DateTime _lastLiveUpdate = DateTime.MinValue;
         private readonly object _sync = new object();
         private Timer _pollTimer;
 
@@ -76,6 +79,23 @@ namespace XrPerf.SimHubPlugin
             this.AttachDelegate("XrPerf.RecordingSeconds", () => Status.RecordingSeconds);
             this.AttachDelegate("XrPerf.LastError", () => LastError);
 
+            // Live values read directly from the layer's shared memory (updated ~10x per second).
+            this.AttachDelegate("XrPerf.Live.Connected", () => _live.Connected);
+            this.AttachDelegate("XrPerf.Live.Fps", () => Math.Round(_live.Fps, 1));
+            this.AttachDelegate("XrPerf.Live.FrameTimeMs", () => Math.Round(_live.FrameTimeMs, 2));
+            this.AttachDelegate("XrPerf.Live.AppCpuMs", () => Math.Round(_live.AppCpuMs, 2));
+            this.AttachDelegate("XrPerf.Live.RenderCpuMs", () => Math.Round(_live.RenderCpuMs, 2));
+            this.AttachDelegate("XrPerf.Live.GpuMs", () => Math.Round(_live.GpuMs, 2));
+            this.AttachDelegate("XrPerf.Live.GpuValid", () => _live.GpuValid);
+            this.AttachDelegate("XrPerf.Live.RefreshRate", () => Math.Round(_live.RefreshRate, 1));
+            this.AttachDelegate("XrPerf.Live.FrameBudgetMs", () => Math.Round(_live.FrameBudgetMs, 2));
+            this.AttachDelegate("XrPerf.Live.RenderWidth", () => _live.RenderWidth);
+            this.AttachDelegate("XrPerf.Live.RenderHeight", () => _live.RenderHeight);
+            this.AttachDelegate("XrPerf.Live.AppName", () => _live.AppName);
+            this.AttachDelegate("XrPerf.Live.Runtime", () => _live.RuntimeName);
+            this.AttachDelegate("XrPerf.Live.GraphicsApi", () => _live.GraphicsApi);
+            this.AttachDelegate("XrPerf.Live.OverlayStatus", () => _live.OverlayStatus.ToString());
+
             this.AddAction("XrPerfStart", (a, b) => StartRecording());
             this.AddAction("XrPerfStop", (a, b) => StopRecording());
             this.AddAction("XrPerfToggle", (a, b) =>
@@ -93,11 +113,19 @@ namespace XrPerf.SimHubPlugin
         public void End(PluginManager pluginManager)
         {
             _pollTimer?.Dispose();
+            _liveReader.Dispose();
             this.SaveCommonSettings(SettingsKey, Settings);
         }
 
         public void DataUpdate(PluginManager pluginManager, ref GameData data)
         {
+            var now = DateTime.UtcNow;
+            if ((now - _lastLiveUpdate).TotalMilliseconds >= 100)
+            {
+                _lastLiveUpdate = now;
+                _live = _liveReader.Read();
+            }
+
             bool running = data.GameRunning && data.NewData != null;
 
             if (running)

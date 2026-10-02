@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:openXRTK_Graph"
         xmlns:oxy="http://oxyplot.org/wpf"
         mc:Ignorable="d"
-        Title="VR Performance Recorder"
+        Title="VR Performance Recorder" Icon="Resources/app.ico"
         Height="750" Width="1350" MinWidth="1350" MinHeight="750"
         Background="#111111" Foreground="#DDDDDD">
 
@@ -94,30 +94,19 @@
                 <Button x:Name="BtnOpen" Content="📂  Open CSV…" Click="BtnOpen_Click" FontSize="13"/>
                 <TextBlock x:Name="TxtFilePath" Margin="16,0,0,0" VerticalAlignment="Center"
                            FontSize="11" Foreground="#888888" Text="No file loaded"/>
-                <Button x:Name="BtnStartLog" Content="● Start Live Log" Click="BtnStartLog_Click" Margin="16,0,0,0" FontSize="13"/>
-                <Button x:Name="BtnStopLog" Content="■ Stop Live Log" Click="BtnStopLog_Click" Margin="6,0,0,0" FontSize="13" IsEnabled="False"/>
-                <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="#AAAAAA" Text="Interval:"/>
-                <ComboBox x:Name="CmbInterval" Width="80" Margin="6,0,0,0" VerticalAlignment="Center" SelectedIndex="1" SelectionChanged="CmbInterval_SelectionChanged">
-                    <ComboBoxItem Tag="100">100 ms</ComboBoxItem>
-                    <ComboBoxItem Tag="200">200 ms</ComboBoxItem>
-                    <ComboBoxItem Tag="500">500 ms</ComboBoxItem>
-                    <ComboBoxItem Tag="1000">1000 ms</ComboBoxItem>
-                    <ComboBoxItem Tag="2000">2000 ms</ComboBoxItem>
-                </ComboBox>
                 <Border Width="1" Background="#333333" Margin="16,0" VerticalAlignment="Stretch"/>
                 <Button x:Name="BtnCompare" Content="⚖  Compare Sessions…" Click="BtnCompare_Click" FontSize="13"/>
                 <Border Width="1" Background="#333333" Margin="16,0" VerticalAlignment="Stretch"/>
                 <TextBlock x:Name="TxtRecIndicator" Text="&#x25CF; REC" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="#555555" ToolTip="Recording state of the XrPerf recorder"/>
-                <CheckBox x:Name="ChkRecSound" Content="Sound" Margin="8,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="#AAAAAA" ToolTip="Play a sound when recording starts/stops" Checked="ChkRecSound_Changed" Unchecked="ChkRecSound_Changed"/>
                 <Border Width="1" Background="#333333" Margin="16,0" VerticalAlignment="Stretch"/>
                 <TextBlock Text="Perf Layer:" VerticalAlignment="Center" FontSize="11" Foreground="#AAAAAA"/>
                 <TextBlock x:Name="TxtLayerState" Text="-" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="11" FontWeight="Bold"/>
-                <Button x:Name="BtnLayerInstall" Content="Install" Click="BtnLayerInstall_Click" Margin="10,0,0,0" FontSize="13"
-                        ToolTip="Register the XrPerf OpenXR layer (administrator rights required)"/>
-                <Button x:Name="BtnLayerToggle" Content="Disable" Click="BtnLayerToggle_Click" Margin="6,0,0,0" FontSize="13"/>
-                <Button x:Name="BtnLayerUninstall" Content="Uninstall" Click="BtnLayerUninstall_Click" Margin="6,0,0,0" FontSize="13"/>
+                <TextBlock Text="SimHub Plugin:" Margin="16,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="#AAAAAA"/>
+                <TextBlock x:Name="TxtSimHubState" Text="-" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="11" FontWeight="Bold"/>
                 <Border Width="1" Background="#333333" Margin="16,0" VerticalAlignment="Stretch"/>
-                <Button x:Name="BtnSimHubPlugin" Content="Install SimHub Plugin" Click="BtnSimHubPlugin_Click" FontSize="13"/>
+                <Button x:Name="BtnSettings" Content="⚙  Settings…" Click="BtnSettings_Click" FontSize="13"
+                        ToolTip="Recording sound, OpenXR layer, SimHub plugin and VR overlay"/>
+                <Button x:Name="BtnAbout" Content="ⓘ  About" Click="BtnAbout_Click" FontSize="13" Margin="6,0,0,0"/>
             </StackPanel>
         </Border>
 

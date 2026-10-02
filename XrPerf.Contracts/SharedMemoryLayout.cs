@@ -35,6 +35,7 @@ namespace XrPerf.Contracts
             public const int FovLeft = 80;
             public const int FovRight = 96;
             public const int SessionState = 112;
+            public const int OverlayStatus = 116;
             public const int AppName = 120;
             public const int EngineName = 184;
             public const int RuntimeName = 248;

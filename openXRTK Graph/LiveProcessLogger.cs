@@ -16,11 +16,11 @@ public sealed class LiveProcessLogger : IDisposable
     private DateTime _lastCheck = DateTime.UtcNow;
     private int _busy;
 
-    public LiveProcessLogger(int intervalMs = 1000, string? directory = null)
+    public LiveProcessLogger(int intervalMs = 1000, string? directory = null, string? filePath = null)
     {
         directory ??= Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "openxrtk-logs");
-        Directory.CreateDirectory(directory);
-        LogFilePath = Path.Combine(directory, $"openxrtk_process_log_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+        LogFilePath = filePath ?? Path.Combine(directory, $"openxrtk_process_log_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+        Directory.CreateDirectory(Path.GetDirectoryName(LogFilePath)!);
 
         // Write header
         File.WriteAllText(LogFilePath, "TimestampUtc,ProcessName,PID,CPUPercent,WorkingSetMB,ThreadCount\n", Encoding.UTF8);

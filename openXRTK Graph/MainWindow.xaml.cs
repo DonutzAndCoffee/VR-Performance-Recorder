@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using Microsoft.Win32;
 
 namespace openXRTK_Graph;
@@ -7,17 +7,13 @@ public partial class MainWindow : Window
 {
     private List<CsvDataPoint> _data = [];
     private SessionMetadata? _meta;
-    private LiveProcessLogger? _liveLogger;
     private List<FpsCorrelationAnalyzer.ProcessSnapshot> _processLog = [];
-    private int _intervalMs = 1000;
 
     public MainWindow()
     {
         InitializeComponent();
-        ChkRecSound.IsChecked = RecordingIndicator.SoundEnabled;
         SetRecordingIndicator(App.Recorder?.IsRecording ?? false);
-        UpdateLayerUi();
-        UpdateSimHubUi();
+        UpdateStatusUi();
     }
 
     public void SetRecordingIndicator(bool recording)
@@ -27,95 +23,29 @@ public partial class MainWindow : Window
             : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x55, 0x55, 0x55));
     }
 
-    private void ChkRecSound_Changed(object sender, RoutedEventArgs e)
+    private void UpdateStatusUi()
     {
-        if (!IsLoaded) return;
-        RecordingIndicator.SoundEnabled = ChkRecSound.IsChecked == true;
-    }
-
-    private void UpdateSimHubUi()
-    {
-        var dir = XrPerf.SimHubPluginInstaller.FindSimHubDirectory();
-        BtnSimHubPlugin.IsEnabled = dir != null && XrPerf.SimHubPluginInstaller.BundleAvailable;
-        var upToDate = dir == null ? null : XrPerf.SimHubPluginInstaller.IsUpToDate(dir);
-        BtnSimHubPlugin.Content = upToDate switch
-        {
-            true => "SimHub Plugin ✓",
-            false => "Update SimHub Plugin",
-            null => "Install SimHub Plugin",
-        };
-        BtnSimHubPlugin.ToolTip = dir == null ? "SimHub installation not found." :
-            !XrPerf.SimHubPluginInstaller.BundleAvailable ? "Plugin files not bundled with this build." :
-            $"Copies the XrPerf plugin to {dir}";
-    }
-
-    private void BtnSimHubPlugin_Click(object sender, RoutedEventArgs e)
-    {
-        var dir = XrPerf.SimHubPluginInstaller.FindSimHubDirectory();
-        if (dir == null) return;
-
-        while (XrPerf.SimHubPluginInstaller.IsSimHubRunning())
-        {
-            if (MessageBox.Show("Please close SimHub first, then click OK.", "SimHub Plugin",
-                    MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK)
-                return;
-        }
-
-        if (XrPerf.SimHubPluginInstaller.Install(dir))
-            MessageBox.Show("Plugin installed. Start SimHub and enable \"XrPerf Recorder\" when prompted.",
-                "SimHub Plugin", MessageBoxButton.OK, MessageBoxImage.Information);
-        else
-            MessageBox.Show("The plugin was not installed (administrator approval cancelled or copy failed).",
-                "SimHub Plugin", MessageBoxButton.OK, MessageBoxImage.Warning);
-
-        UpdateSimHubUi();
-    }
-
-    private void Window_Loaded(object sender, RoutedEventArgs e)
-    {
-        UpdateLayerUi();
-    }
-
-    private void UpdateLayerUi()
-    {
-        var (state, _) = XrPerf.LayerManager.GetState();
-        (TxtLayerState.Text, TxtLayerState.Foreground) = state switch
-        {
-            XrPerf.LayerManager.LayerState.Enabled => ("Active", System.Windows.Media.Brushes.LimeGreen),
-            XrPerf.LayerManager.LayerState.Disabled => ("Disabled", System.Windows.Media.Brushes.Orange),
-            XrPerf.LayerManager.LayerState.Missing => ("Files missing", System.Windows.Media.Brushes.OrangeRed),
-            _ => ("Not installed", System.Windows.Media.Brushes.Gray),
-        };
-
-        bool registered = state != XrPerf.LayerManager.LayerState.NotInstalled;
-        BtnLayerInstall.Content = registered ? "Reinstall" : "Install";
-        BtnLayerInstall.IsEnabled = XrPerf.LayerManager.BundledLayerAvailable;
-        BtnLayerToggle.IsEnabled = state is XrPerf.LayerManager.LayerState.Enabled or XrPerf.LayerManager.LayerState.Disabled;
-        BtnLayerToggle.Content = state == XrPerf.LayerManager.LayerState.Disabled ? "Enable" : "Disable";
-        BtnLayerUninstall.IsEnabled = registered;
-
+        (TxtLayerState.Text, TxtLayerState.Foreground) = SettingsWindow.GetLayerStatus();
+        (TxtSimHubState.Text, TxtSimHubState.Foreground) = SettingsWindow.GetSimHubStatus();
         TxtLayerState.ToolTip = string.Join(Environment.NewLine,
             XrPerf.LayerManager.ListLayers().Select(l => $"[{(l.Enabled ? "on " : "off")}] {l.Path}")
                 .DefaultIfEmpty("No implicit OpenXR layers registered."));
     }
 
-    private void RunLayerAction(Func<bool> action)
+    private void BtnSettings_Click(object sender, RoutedEventArgs e)
     {
-        if (!action())
-            MessageBox.Show("The change was not applied (administrator approval cancelled or failed).",
-                "Perf Layer", MessageBoxButton.OK, MessageBoxImage.Warning);
-        UpdateLayerUi();
+        new SettingsWindow { Owner = this }.ShowDialog();
+        UpdateStatusUi();
     }
 
-    private void BtnLayerInstall_Click(object sender, RoutedEventArgs e) => RunLayerAction(XrPerf.LayerManager.Install);
-
-    private void BtnLayerUninstall_Click(object sender, RoutedEventArgs e) => RunLayerAction(XrPerf.LayerManager.Uninstall);
-
-    private void BtnLayerToggle_Click(object sender, RoutedEventArgs e)
+    private void BtnAbout_Click(object sender, RoutedEventArgs e)
     {
-        var (state, path) = XrPerf.LayerManager.GetState();
-        if (path == null) return;
-        RunLayerAction(() => XrPerf.LayerManager.SetEnabled(path, state == XrPerf.LayerManager.LayerState.Disabled));
+        new AboutWindow { Owner = this }.ShowDialog();
+    }
+
+    private void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+        UpdateStatusUi();
     }
 
     private void BtnOpen_Click(object sender, RoutedEventArgs e)
@@ -148,6 +78,13 @@ public partial class MainWindow : Window
             UpdateStats();
             UpdateCharts();
             LoadFramesAnalysis(fileName);
+
+            string processPath = System.IO.Path.ChangeExtension(fileName, null) + "_process.csv";
+            if (System.IO.File.Exists(processPath))
+            {
+                _processLog = FpsCorrelationAnalyzer.LoadProcessLog(processPath);
+                TxtProcessLogPath.Text = System.IO.Path.GetFileName(processPath);
+            }
         }
         catch (Exception ex)
         {
@@ -252,63 +189,6 @@ public partial class MainWindow : Window
         double hz = fromSession ?? XrPerf.FramesAnalyzer.EstimateRefreshRate(_framesPath);
         if (hz > 0)
             TxtFramesHz.Text = Math.Round(hz).ToString(System.Globalization.CultureInfo.InvariantCulture);
-    }
-
-    private void BtnStartLog_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            if (_liveLogger != null) return;
-            StartLogger(_intervalMs);
-            MessageBox.Show($"Live process logging started. Writing to:\n{_liveLogger.LogFilePath}", "Live Log", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to start live logger:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void BtnStopLog_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            if (_liveLogger == null) return;
-            var path = _liveLogger.LogFilePath;
-            StopLogger();
-            MessageBox.Show($"Live process logging stopped. File saved to:\n{path}", "Live Log", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to stop live logger:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void StartLogger(int intervalMs)
-    {
-        if (_liveLogger != null) return;
-        _liveLogger = new LiveProcessLogger(intervalMs);
-        _liveLogger.Start();
-        BtnStartLog.IsEnabled = false;
-        BtnStopLog.IsEnabled = true;
-    }
-
-    private void StopLogger()
-    {
-        if (_liveLogger == null) return;
-        _liveLogger.Stop();
-        _liveLogger.Dispose();
-        _liveLogger = null;
-        BtnStartLog.IsEnabled = true;
-        BtnStopLog.IsEnabled = false;
-    }
-
-    private void CmbInterval_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
-    {
-        if (CmbInterval.SelectedItem is System.Windows.Controls.ComboBoxItem it && int.TryParse(it.Tag?.ToString(), out var v))
-        {
-            _intervalMs = v;
-            if (_liveLogger != null) _liveLogger.IntervalMs = v;
-        }
     }
 
     private void UpdateStats()

@@ -18,8 +18,11 @@ namespace openXRTK_Graph
             base.OnStartup(e);
 
             Recorder = new XrPerfRecorder();
+            OverlaySettings.Set(OverlaySettings.RecordingActive, false);
             Recorder.RecordingStateChanged += recording =>
             {
+                OverlaySettings.Set(OverlaySettings.RecordingActive, recording);
+                UpdateProcessLogger(recording);
                 RecordingIndicator.Play(recording);
                 Dispatcher.BeginInvoke(() => (MainWindow as openXRTK_Graph.MainWindow)?.SetRecordingIndicator(recording));
             };
@@ -30,7 +33,33 @@ namespace openXRTK_Graph
             RegisterAppLocation();
         }
 
-        /// <summary>Lets the SimHub plugin find and launch this app.</summary>
+        private LiveProcessLogger? _processLogger;
+        private readonly object _processLoggerLock = new();
+
+        /// <summary>Records a process log next to every VR session CSV when enabled in settings.</summary>
+        private void UpdateProcessLogger(bool recording)
+        {
+            lock (_processLoggerLock)
+            {
+                _processLogger?.Stop();
+                _processLogger?.Dispose();
+                _processLogger = null;
+
+                if (!recording || !OverlaySettings.Get(OverlaySettings.ProcessLogging, false)) return;
+                string? session = Recorder?.GetStatus().CurrentSessionPath;
+                if (string.IsNullOrEmpty(session)) return;
+                try
+                {
+                    string path = System.IO.Path.ChangeExtension(session, null) + "_process.csv";
+                    int interval = OverlaySettings.Get(OverlaySettings.ProcessLogIntervalMs, 1000);
+                    _processLogger = new LiveProcessLogger(interval, filePath: path);
+                    _processLogger.Start();
+                }
+                catch (Exception) { _processLogger = null; }
+            }
+        }
+
+        /// <summary>Lets the SimHub plugin
         private static void RegisterAppLocation()
         {
             try
@@ -63,6 +92,8 @@ namespace openXRTK_Graph
         {
             _controlServer?.Dispose();
             Recorder?.Dispose();
+            UpdateProcessLogger(false);
+            OverlaySettings.Set(OverlaySettings.RecordingActive, false);
             base.OnExit(e);
         }
     }

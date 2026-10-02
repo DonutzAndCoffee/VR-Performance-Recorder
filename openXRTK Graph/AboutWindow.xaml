@@ -1,0 +1,65 @@
+<Window x:Class="openXRTK_Graph.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="About VR Performance Recorder"
+        WindowStartupLocation="CenterOwner" Icon="Resources/app.ico"
+        Background="#1A1A1A" Foreground="#DDDDDD">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#DDDDDD"/>
+        </Style>
+        <Style TargetType="Hyperlink">
+            <Setter Property="Foreground" Value="#4EA1FF"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal">
+            <Image Source="Resources/AppIcon.png" Width="48" Height="48" Margin="0,0,12,0"/>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="VR Performance Recorder" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="Donutz: Proof that sim racing can be delicious." FontStyle="Italic" FontSize="12"/>
+            </StackPanel>
+        </StackPanel>
+
+        <TextBlock Grid.Row="1" x:Name="VersionText" Margin="0,8,0,16"/>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock>
+                    <Hyperlink NavigateUri="https://github.com/DonutzAndCoffee/openXRTK-Graph" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/DonutzAndCoffee/openXRTK-Graph</Hyperlink>
+                </TextBlock>
+                <TextBlock Margin="0,4,0,16">
+                    <Hyperlink NavigateUri="https://discord.gg/KuSsEYg83k" RequestNavigate="Hyperlink_RequestNavigate">https://discord.gg/KuSsEYg83k</Hyperlink>
+                </TextBlock>
+
+                <TextBlock Text="Why the new name?" FontWeight="Bold" Margin="0,0,0,4"/>
+                <TextBlock TextWrapping="Wrap" Margin="0,0,0,12"
+                           Text="This tool started as &quot;openXRTK Graph&quot;, a viewer for OpenXR Toolkit performance logs. It now records sessions itself via its own OpenXR API layer (and OpenVR), shows a live in-headset overlay and feeds SimHub dashboards - no OpenXR Toolkit required. &quot;VR Performance Recorder&quot; describes that better. The repository keeps its original name."/>
+
+                <TextBlock Text="Copyright (c) 2025 DonutzAndCoffee" Margin="0,0,0,12"/>
+
+                <TextBlock Text="License" FontWeight="Bold" Margin="0,0,0,4"/>
+                <TextBlock TextWrapping="Wrap" Margin="0,0,0,4"
+                           Text="This program is licensed under Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0). Use, modification and redistribution are permitted with attribution to the original author; commercial use is not permitted."/>
+                <TextBlock Margin="0,0,0,12">
+                    <Hyperlink NavigateUri="https://creativecommons.org/licenses/by-nc/4.0/" RequestNavigate="Hyperlink_RequestNavigate">https://creativecommons.org/licenses/by-nc/4.0/</Hyperlink>
+                </TextBlock>
+
+                <TextBlock Text="Third-party components" FontWeight="Bold" Margin="0,0,0,4"/>
+                <TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                           Text="This program uses the following open-source components under their respective licenses:"/>
+                <TextBlock TextWrapping="Wrap" FontFamily="Consolas" FontSize="11">OxyPlot (OxyPlot.Wpf) — MIT&#x0a;OpenXR-SDK headers (XrPerfLayer/external/openxr) — Apache-2.0&#x0a;SimHub SDK (plugin interfaces) — © SimHub, used under its plugin terms</TextBlock>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="3" Content="Close" Width="80" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="0,4"
+                IsDefault="True" IsCancel="True" Click="CloseButton_Click"/>
+    </Grid>
+</Window>
