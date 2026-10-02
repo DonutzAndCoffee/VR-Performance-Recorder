@@ -37,7 +37,7 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
             <StackPanel>
                 <TextBlock>
-                    <Hyperlink NavigateUri="https://github.com/DonutzAndCoffee/openXRTK-Graph" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/DonutzAndCoffee/openXRTK-Graph</Hyperlink>
+                    <Hyperlink NavigateUri="https://github.com/DonutzAndCoffee/VR-Performance-Recorder" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/DonutzAndCoffee/VR-Performance-Recorder</Hyperlink>
                 </TextBlock>
                 <TextBlock Margin="0,4,0,16">
                     <Hyperlink NavigateUri="https://discord.gg/KuSsEYg83k" RequestNavigate="Hyperlink_RequestNavigate">https://discord.gg/KuSsEYg83k</Hyperlink>
@@ -45,7 +45,7 @@
 
                 <TextBlock Text="Why the new name?" FontWeight="Bold" Margin="0,0,0,4"/>
                 <TextBlock TextWrapping="Wrap" Margin="0,0,0,12"
-                           Text="This tool started as &quot;openXRTK Graph&quot;, a viewer for OpenXR Toolkit performance logs. It now records sessions itself via its own OpenXR API layer (and OpenVR), shows a live in-headset overlay and feeds SimHub dashboards - no OpenXR Toolkit required. &quot;VR Performance Recorder&quot; describes that better. The repository keeps its original name."/>
+                           Text="This tool started as &quot;openXRTK Graph&quot;, a viewer for OpenXR Toolkit performance logs. It now records sessions itself via its own OpenXR API layer (and OpenVR), shows a live in-headset overlay and feeds SimHub dashboards - no OpenXR Toolkit required. &quot;VR Performance Recorder&quot; describes that better, so the app and its repository were renamed."/>
 
                 <TextBlock Text="Copyright (c) 2025 DonutzAndCoffee" Margin="0,0,0,12"/>
 

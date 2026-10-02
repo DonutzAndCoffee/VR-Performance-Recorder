@@ -8,8 +8,8 @@ namespace openXRTK_Graph;
 /// <summary>Checks the latest GitHub release of the repository against the running assembly version.</summary>
 public static class UpdateChecker
 {
-    public const string ReleasesUrl = "https://github.com/DonutzAndCoffee/openXRTK-Graph/releases";
-    private const string LatestReleaseApi = "https://api.github.com/repos/DonutzAndCoffee/openXRTK-Graph/releases/latest";
+    public const string ReleasesUrl = "https://github.com/DonutzAndCoffee/VR-Performance-Recorder/releases";
+    private const string LatestReleaseApi = "https://api.github.com/repos/DonutzAndCoffee/VR-Performance-Recorder/releases/latest";
 
     public sealed record Result(Version Current, Version? Latest, string? ReleaseUrl, bool NoReleaseYet)
     {
@@ -29,7 +29,7 @@ public static class UpdateChecker
     {
         var current = CurrentVersion;
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("openXRTK-Graph", current.ToString(3)));
+        http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("VR-Performance-Recorder", current.ToString(3)));
         http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
 
         using var response = await http.GetAsync(LatestReleaseApi, ct).ConfigureAwait(false);
