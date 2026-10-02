@@ -4,7 +4,7 @@
 
 > *Donutz: Proof that sim racing can be delicious.*
 
-[![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/KuSsEYg83k)
+[![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.com/invite/KuSsEYgB3k)
 
 VR Performance Recorder is a Windows tool for recording, viewing and comparing how your VR games perform. It shows FPS, frame times, CPU/GPU load and VRAM usage as easy-to-read charts. It can also show a small live overlay inside your headset and send live data to **SimHub** dashboards.
 
