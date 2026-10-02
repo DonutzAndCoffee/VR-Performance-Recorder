@@ -1,4 +1,4 @@
-<Window x:Class="openXRTK_Graph.SettingsWindow"
+﻿<Window x:Class="openXRTK_Graph.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Settings" SizeToContent="WidthAndHeight" ResizeMode="NoResize"
@@ -29,7 +29,17 @@
         </Style>
     </Window.Resources>
 
-    <StackPanel Margin="16" Width="340">
+    <Grid Margin="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="360"/>
+            <ColumnDefinition Width="16"/>
+            <ColumnDefinition Width="340"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+    <StackPanel Grid.Column="0">
         <GroupBox>
             <StackPanel>
                 <TextBlock Text="General" Style="{StaticResource Header}"/>
@@ -69,6 +79,18 @@
                 <Button x:Name="BtnSimHubPlugin" Content="Install SimHub Plugin" Click="BtnSimHubPlugin_Click" HorizontalAlignment="Left"/>
             </StackPanel>
         </GroupBox>
+
+        <GroupBox>
+            <StackPanel>
+                <TextBlock Text="Controller Buttons" Style="{StaticResource Header}"/>
+                <TextBlock Text="Assign wheel / button box buttons directly (no SimHub needed). Click Assign, then press the button."
+                           FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <StackPanel x:Name="PnlButtonBindings"/>
+            </StackPanel>
+        </GroupBox>
+    </StackPanel>
+
+    <StackPanel Grid.Column="2">
 
         <GroupBox>
             <StackPanel>
@@ -113,6 +135,8 @@
             </StackPanel>
         </GroupBox>
 
-        <Button Content="Close" Click="BtnClose_Click" HorizontalAlignment="Right" Margin="0" Padding="16,4"/>
-    </StackPanel>
+            </StackPanel>
+
+        <Button Grid.Row="1" Grid.Column="2" Content="Close" Click="BtnClose_Click" HorizontalAlignment="Right" Margin="0" Padding="16,4"/>
+    </Grid>
 </Window>

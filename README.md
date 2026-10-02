@@ -28,6 +28,7 @@ It works with **OpenXR** games and with native **OpenVR/SteamVR** games. It can 
 - **Compare sessions** – put up to 3 recordings side by side (A / B / C).
 - **Live in-headset overlay** – shows FPS, frame time, CPU/GPU, resolution and app name. You can set the position and size. *(Direct3D 11 games only)*
 - **SimHub integration** – an included plugin sends live performance data to your SimHub dashboards.
+- **Controller buttons without SimHub** – assign wheel / button box buttons directly in the app for Start/Stop, Start, Stop and Marker.
 - **OpenXR Toolkit compatible** – opens existing OpenXR Toolkit CSV logs.
 - **Update checker** – tells you when a new version is available on GitHub.
 
@@ -54,7 +55,8 @@ Open **Settings** in the app:
 
 1. **OpenXR Perf Layer** → click **Install**. This is needed to record OpenXR games and to show the in-headset overlay. Windows will ask for administrator rights because the layer is registered in the system registry.
 2. *(Optional)* **SimHub Plugin** → click **Install** to copy the plugin into SimHub. Restart SimHub afterwards.
-3. *(Optional)* **VR Overlay** → choose what is shown, where, and how big.
+3. *(Optional)* **Controller Buttons** → click **Assign** next to an action and press a button on your wheel or button box. Works without SimHub, even while the app is in the background.
+4. *(Optional)* **VR Overlay** → choose what is shown, where, and how big.
 
 You can **Disable** or **Uninstall** the layer at any time from the same Settings page.
 
@@ -76,6 +78,9 @@ Recordings are saved to:
 ### View a recording
 Click **Open CSV** and pick a session file (or an OpenXR Toolkit log). Use the tabs to switch between the charts.
 
+### Manage recordings
+Click **Sessions…** (next to the REC indicator) to open the list of all recordings. Double-click a session to open it, select 2–3 sessions and click **Compare selected**, or **Delete selected** to remove sessions including all their files.
+
 ### Compare recordings
 Click **Compare Sessions** and load up to three recordings, e.g. to compare graphics settings or driver versions.
 
@@ -95,6 +100,7 @@ Turn on **Process logging** in Settings (interval 100–2000 ms). The **FPS Drop
 | Process logging | Log CPU/RAM usage per process, with a configurable interval |
 | OpenXR Perf Layer | Install, enable/disable or uninstall the OpenXR layer |
 | SimHub Plugin | Install or update the SimHub plugin |
+| Controller Buttons | Assign DirectInput buttons (wheel, button box, joystick) to Start/Stop, Start, Stop and Marker – no SimHub needed |
 | VR Overlay | Show FPS, frame time, CPU/GPU, resolution, app name; position (4 corners); size (75 % / 100 % / 140 %) |
 
 ---
@@ -145,6 +151,7 @@ Licensed under [Creative Commons Attribution-NonCommercial 4.0 International (CC
 
 Third-party components:
 - [OxyPlot](https://github.com/oxyplot/oxyplot) – MIT License
+- [SharpDX.DirectInput](https://github.com/sharpdx/SharpDX) – MIT License
 - OpenXR-SDK headers – Apache-2.0
 - SimHub SDK (plugin interfaces) – © SimHub, used under its plugin terms
 

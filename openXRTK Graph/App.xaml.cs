@@ -12,6 +12,7 @@ namespace openXRTK_Graph
     {
         public static XrPerfRecorder? Recorder { get; private set; }
         private XrPerfControlServer? _controlServer;
+        public static Input.ButtonBindingManager? Buttons { get; private set; }
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -30,7 +31,42 @@ namespace openXRTK_Graph
             _controlServer.OpenSessionRequested += path => Dispatcher.BeginInvoke(() => OpenSession(path));
             _controlServer.CompareSessionsRequested += paths => Dispatcher.BeginInvoke(() => CompareSessions(paths));
 
+            try
+            {
+                Buttons = new Input.ButtonBindingManager();
+                Buttons.ActionTriggered += OnButtonAction;
+            }
+            catch (Exception) { Buttons = null; }
+
             RegisterAppLocation();
+        }
+
+        /// <summary>Handles controller buttons assigned directly in the app (alternative to the SimHub plugin).</summary>
+        private static void OnButtonAction(Input.ButtonAction action)
+        {
+            var recorder = Recorder;
+            if (recorder is null) return;
+            try
+            {
+                switch (action)
+                {
+                    case Input.ButtonAction.Start:
+                        if (!recorder.IsRecording) recorder.Start(null, null);
+                        break;
+                    case Input.ButtonAction.Stop:
+                        recorder.Stop();
+                        break;
+                    case Input.ButtonAction.Toggle:
+                        if (recorder.IsRecording) recorder.Stop();
+                        else recorder.Start(null, null);
+                        break;
+                    case Input.ButtonAction.Marker:
+                        var status = recorder.GetStatus();
+                        if (status.IsRecording) recorder.MarkLap(status.CurrentLap + 1);
+                        break;
+                }
+            }
+            catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { }
         }
 
         private LiveProcessLogger? _processLogger;
@@ -70,7 +106,7 @@ namespace openXRTK_Graph
             catch (Exception) { }
         }
 
-        private void OpenSession(string path)
+        internal void OpenSession(string path)
         {
             if (MainWindow is not openXRTK_Graph.MainWindow window) return;
 
@@ -80,7 +116,7 @@ namespace openXRTK_Graph
             window.LoadFile(path);
         }
 
-        private void CompareSessions(IReadOnlyList<string> paths)
+        internal void CompareSessions(IReadOnlyList<string> paths)
         {
             var window = new CompareWindow { Owner = MainWindow };
             window.Show();
@@ -90,6 +126,7 @@ namespace openXRTK_Graph
 
         protected override void OnExit(ExitEventArgs e)
         {
+            Buttons?.Dispose();
             _controlServer?.Dispose();
             Recorder?.Dispose();
             UpdateProcessLogger(false);

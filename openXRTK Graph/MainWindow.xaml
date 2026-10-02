@@ -98,6 +98,8 @@
                 <Button x:Name="BtnCompare" Content="⚖  Compare Sessions…" Click="BtnCompare_Click" FontSize="13"/>
                 <Border Width="1" Background="#333333" Margin="16,0" VerticalAlignment="Stretch"/>
                 <TextBlock x:Name="TxtRecIndicator" Text="&#x25CF; REC" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="#555555" ToolTip="Recording state of the XrPerf recorder"/>
+                <Button x:Name="BtnSessions" Content="☰  Sessions…" Click="BtnSessions_Click" FontSize="13" Margin="10,0,0,0"
+                        ToolTip="List of recorded sessions: open, compare or delete"/>
                 <Border Width="1" Background="#333333" Margin="16,0" VerticalAlignment="Stretch"/>
                 <TextBlock Text="Perf Layer:" VerticalAlignment="Center" FontSize="11" Foreground="#AAAAAA"/>
                 <TextBlock x:Name="TxtLayerState" Text="-" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="11" FontWeight="Bold"/>

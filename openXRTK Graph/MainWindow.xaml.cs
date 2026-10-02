@@ -32,6 +32,23 @@ public partial class MainWindow : Window
                 .DefaultIfEmpty("No implicit OpenXR layers registered."));
     }
 
+    private SessionsWindow? _sessionsWindow;
+
+    private void BtnSessions_Click(object sender, RoutedEventArgs e)
+    {
+        if (_sessionsWindow is null)
+        {
+            _sessionsWindow = new SessionsWindow { Owner = this };
+            _sessionsWindow.Closed += (_, _) => _sessionsWindow = null;
+            _sessionsWindow.Show();
+        }
+        else
+        {
+            if (_sessionsWindow.WindowState == WindowState.Minimized) _sessionsWindow.WindowState = WindowState.Normal;
+            _sessionsWindow.Activate();
+        }
+    }
+
     private void BtnSettings_Click(object sender, RoutedEventArgs e)
     {
         new SettingsWindow { Owner = this }.ShowDialog();

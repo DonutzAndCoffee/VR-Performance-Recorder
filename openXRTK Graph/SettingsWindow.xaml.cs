@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
@@ -57,6 +57,7 @@ public partial class SettingsWindow : Window
 
         UpdateLayerUi();
         UpdateSimHubUi();
+        BuildButtonBindingsUi();
 
         var reader = new global::XrPerf.Contracts.LiveStatsReader();
         var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -141,6 +142,88 @@ public partial class SettingsWindow : Window
         var (state, path) = XrPerf.LayerManager.GetState();
         if (path == null) return;
         RunLayerAction(() => XrPerf.LayerManager.SetEnabled(path, state == XrPerf.LayerManager.LayerState.Disabled));
+    }
+
+    // ---- Controller buttons ----
+
+    private void BuildButtonBindingsUi()
+    {
+        var manager = App.Buttons;
+        if (manager is null)
+        {
+            PnlButtonBindings.Children.Add(new TextBlock { Text = "DirectInput is not available.", Foreground = Brushes.OrangeRed });
+            return;
+        }
+
+        (Input.ButtonAction Action, string Label)[] actions =
+        [
+            (Input.ButtonAction.Toggle, "Start/Stop"),
+            (Input.ButtonAction.Start, "Start"),
+            (Input.ButtonAction.Stop, "Stop"),
+            (Input.ButtonAction.Marker, "Marker"),
+        ];
+
+        var labels = new Dictionary<Input.ButtonAction, TextBlock>();
+        var assignButtons = new List<Button>();
+
+        void Refresh(Input.ButtonAction action) =>
+            labels[action].Text = manager.GetBinding(action)?.ToString() ?? "Not assigned";
+
+        foreach (var (action, label) in actions)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            grid.Children.Add(new TextBlock { Text = label + ":", VerticalAlignment = VerticalAlignment.Center });
+            var value = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = Brushes.White };
+            Grid.SetColumn(value, 1);
+            grid.Children.Add(value);
+            labels[action] = value;
+
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal };
+            Grid.SetColumn(buttons, 2);
+            var assign = new Button { Content = "Assign" };
+            var clear = new Button { Content = "Clear", Margin = new Thickness(0) };
+            assign.Click += (_, _) =>
+            {
+                if (manager.IsLearning)
+                {
+                    manager.CancelLearning();
+                    foreach (var a in actions) Refresh(a.Action);
+                    foreach (var b in assignButtons) b.Content = "Assign";
+                    return;
+                }
+                value.Text = "Press a button...";
+                assign.Content = "Cancel";
+                manager.StartLearning(action);
+            };
+            clear.Click += (_, _) =>
+            {
+                manager.SetBinding(action, null);
+                Refresh(action);
+            };
+            buttons.Children.Add(assign);
+            buttons.Children.Add(clear);
+            grid.Children.Add(buttons);
+            assignButtons.Add(assign);
+
+            PnlButtonBindings.Children.Add(grid);
+            Refresh(action);
+        }
+
+        Action<Input.ButtonAction, Input.ButtonBinding> onLearned = (action, _) => Dispatcher.BeginInvoke(() =>
+        {
+            Refresh(action);
+            foreach (var b in assignButtons) b.Content = "Assign";
+        });
+        manager.Learned += onLearned;
+        Closed += (_, _) =>
+        {
+            manager.Learned -= onLearned;
+            manager.CancelLearning();
+        };
     }
 
     // ---- SimHub ----
