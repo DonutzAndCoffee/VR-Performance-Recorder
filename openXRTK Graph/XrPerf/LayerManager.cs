@@ -45,8 +45,28 @@ public static class LayerManager
         return key.GetValueNames().Select(n => (n, key.GetValue(n) is int v && v == 0)).ToList();
     }
 
-    public static bool Install() => RunElevated(BuildRemoveCommands().Append(
-        $"reg add \"HKLM\\{ImplicitKey}\" /v \"{BundledManifestPath}\" /t REG_DWORD /d 0 /f"));
+    /// <summary>
+    /// Registers the layer as the first implicit layer (closest to the app), so it sees the app's
+    /// real render resolution before other layers (e.g. OpenXR Toolkit upscaling) modify it.
+    /// Other layers are re-added after it to preserve their relative order.
+    /// </summary>
+    public static bool Install()
+    {
+        var others = new List<(string Name, int Value)>();
+        using (var key = Registry.LocalMachine.OpenSubKey(ImplicitKey))
+        {
+            if (key != null)
+                foreach (var n in key.GetValueNames())
+                    if (!string.Equals(Path.GetFileName(n), ManifestFileName, StringComparison.OrdinalIgnoreCase))
+                        others.Add((n, key.GetValue(n) is int v ? v : 1));
+        }
+
+        var commands = BuildRemoveCommands()
+            .Concat(others.Select(o => $"reg delete \"HKLM\\{ImplicitKey}\" /v \"{o.Name}\" /f"))
+            .Append($"reg add \"HKLM\\{ImplicitKey}\" /v \"{BundledManifestPath}\" /t REG_DWORD /d 0 /f")
+            .Concat(others.Select(o => $"reg add \"HKLM\\{ImplicitKey}\" /v \"{o.Name}\" /t REG_DWORD /d {o.Value} /f"));
+        return RunElevated(commands);
+    }
 
     public static bool Uninstall() => RunElevated(BuildRemoveCommands());
 

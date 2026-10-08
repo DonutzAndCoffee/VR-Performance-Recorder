@@ -52,7 +52,19 @@ if (-not $Uninstall) {
 	if (-not (Test-Path (Join-Path (Split-Path $resolved) 'XrPerfLayer.dll'))) {
 		throw "XrPerfLayer.dll not found next to $resolved"
 	}
+	# Register as first layer (closest to the app) so the real app render resolution is captured
+	# before other layers (e.g. OpenXR Toolkit upscaling) change it. Re-add the others afterwards.
+	$others = @()
+	foreach ($name in $key.GetValueNames()) {
+		if ([IO.Path]::GetFileName($name) -ine $layerFile) {
+			$others += [pscustomobject]@{ Name = $name; Value = $key.GetValue($name) }
+			Remove-ItemProperty -Path $keyPath -Name $name
+		}
+	}
 	New-ItemProperty -Path $keyPath -Name $resolved -PropertyType DWord -Value 0 | Out-Null
+	foreach ($o in $others) {
+		New-ItemProperty -Path $keyPath -Name $o.Name -PropertyType DWord -Value $o.Value | Out-Null
+	}
 	Write-Host "Registered: $resolved"
 }
 

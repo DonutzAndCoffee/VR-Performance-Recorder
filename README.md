@@ -67,6 +67,8 @@ Open **Settings** in the app:
 
 You can **Disable** or **Uninstall** the layer at any time from the same Settings page.
 
+> The layer is registered as the **first** implicit OpenXR layer (closest to the game), so the recorded render resolution is the one the game actually renders at, before other layers such as OpenXR Toolkit upscaling change it. If you installed the layer with an older version, click **Install** again to apply the new order.
+
 ---
 
 ## How to use
