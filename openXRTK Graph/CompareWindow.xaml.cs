@@ -76,7 +76,7 @@ public partial class CompareWindow : Window
             _sessions[slot] = new CompareSession(Keys[slot], label, data, meta);
             var (file, stats, bar) = SlotControls(slot);
             file.Text = Path.GetFileName(fileName);
-            stats.Text = FormatStats(data);
+            stats.Text = FormatStats(data, meta);
             bar.Visibility = Visibility.Visible;
             if (slot == 2) BtnClearC.Visibility = Visibility.Visible;
 
@@ -89,18 +89,30 @@ public partial class CompareWindow : Window
         }
     }
 
-    private static string FormatStats(List<CsvDataPoint> data)
+    private static string FormatStats(List<CsvDataPoint> data, SessionMetadata? meta)
     {
         if (data.Count == 0) return "";
         var sortedFps = data.Select(d => d.Fps).OrderBy(f => f).ToList();
         double fps1low = sortedFps[Math.Max(0, (int)(sortedFps.Count * 0.01))];
-        return string.Join("   ",
+        var parts = new List<string>
+        {
             $"Samples: {data.Count}",
             $"FPS avg: {data.Average(d => d.Fps):F1}",
             $"1%low: {fps1low:F1}",
             $"GPU avg: {data.Average(d => d.AppGpuMs):F2} ms",
             $"CPU avg: {data.Average(d => d.AppCpuMs):F2} ms",
-            $"VRAM: {data.Average(d => d.VramMb):F0} MB");
+            $"VRAM: {data.Average(d => d.VramMb):F0} MB",
+        };
+
+        if (meta?.XrPerfSession?.Layer is { SwapchainWidth: > 0 } l)
+            parts.Add($"Res: {l.SwapchainWidth}×{l.SwapchainHeight}/eye");
+        else if (meta?.ResolutionWidth is int w && meta.ResolutionHeight is int h)
+            parts.Add($"Res: {w}×{h}");
+
+        if (meta?.XrPerfSession?.Layer?.RuntimeName is { Length: > 0 } rt)
+            parts.Add($"Runtime: {rt}");
+
+        return string.Join("   ", parts);
     }
 
     private void UpdateCharts()
