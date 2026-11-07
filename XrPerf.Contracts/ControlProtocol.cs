@@ -111,6 +111,8 @@ namespace XrPerf.Contracts
         [DataMember] public double DurationSeconds { get; set; }
         [DataMember] public double AverageFps { get; set; }
         [DataMember] public Dictionary<string, string> Context { get; set; }
+        [DataMember(EmitDefaultValue = false)] public string Comment { get; set; }
+        [DataMember(EmitDefaultValue = false)] public string PimaxPlayVersion { get; set; }
         /// <summary>All files belonging to this session (CSV, per-frame CSV, companion JSON files).</summary>
         [DataMember(EmitDefaultValue = false)] public List<string> Files { get; set; }
 

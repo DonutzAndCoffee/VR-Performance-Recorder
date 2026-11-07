@@ -436,6 +436,8 @@ public static class AnalysisEngine
 			SettingRow("Headset", sessions.Select(s => s.Meta?.XrPerfSession?.Layer?.SystemName is { Length: > 0 } h ? h : null).ToList(), false);
 			SettingRow("Refresh rate (Hz)", sessions.Select(s => HeadsetRate(s.Meta)).ToList(), false);
 			SettingRow("Render res / eye", sessions.Select(s => HeadsetResolution(s.Meta)).ToList(), false);
+			if (sessions.Any(s => s.Meta?.XrPerfSession?.System?.PimaxPlayVersion is not null))
+				SettingRow("Pimax Play", sessions.Select(s => s.Meta?.XrPerfSession?.System?.PimaxPlayVersion).ToList(), false);
 		}
 
 		if (sessions.Any(s => s.Meta?.HasToolkitSettings == true))
@@ -497,6 +499,11 @@ public static class AnalysisEngine
 
     private static void AppendHeadsetInfo(StringBuilder sb, SessionMetadata meta)
     {
+        if (meta.XrPerfSession?.Comment is { Length: > 0 } comment)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"  Comment: {comment}");
+        }
         var l = meta.XrPerfSession?.Layer;
         if (l is null) return;
         sb.AppendLine();
@@ -505,6 +512,8 @@ public static class AnalysisEngine
             sb.AppendLine($"    Headset: {l.SystemName}");
         if (l.RuntimeName.Length > 0)
             sb.AppendLine($"    Runtime: {l.RuntimeName}");
+        if (meta.XrPerfSession?.System?.PimaxPlayVersion is { Length: > 0 } pimax)
+            sb.AppendLine($"    Pimax Play: {pimax}");
         if (l.DisplayRefreshRate > 0)
             sb.AppendLine($"    Refresh rate: {l.DisplayRefreshRate:F0} Hz   Frame budget: {1000.0 / l.DisplayRefreshRate:F2} ms");
         if (l.SwapchainWidth > 0)

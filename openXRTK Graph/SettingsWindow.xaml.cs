@@ -35,6 +35,7 @@ public partial class SettingsWindow : Window
             (ChkCpu, "ShowCpu", true),
             (ChkGpu, "ShowGpu", true),
             (ChkResolution, "ShowResolution", false),
+            (ChkVram, "ShowVram", false),
             (ChkApp, "ShowApp", false),
         ];
         foreach (var (box, name, def) in toggles)

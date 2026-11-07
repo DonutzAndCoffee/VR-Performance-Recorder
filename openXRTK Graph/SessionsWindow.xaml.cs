@@ -36,6 +36,35 @@ public partial class SessionsWindow : Window
         int n = LstSessions.SelectedItems.Count;
         BtnCompare.IsEnabled = n >= 2 && n <= ControlProtocol.MaxCompareSessions;
         BtnDelete.IsEnabled = n > 0;
+        var single = n == 1 ? LstSessions.SelectedItem as SessionSummary : null;
+        TxtComment.Text = single?.Comment ?? "";
+        TxtComment.IsEnabled = BtnSaveComment.IsEnabled = single is not null;
+    }
+
+    private void BtnSaveComment_Click(object sender, RoutedEventArgs e)
+    {
+        if (LstSessions.SelectedItem is not SessionSummary session) return;
+        if (IsCurrentRecording(session))
+        {
+            MessageBox.Show("The comment can be edited once the recording has stopped.", "Comment", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        try
+        {
+            XrPerf.XrPerfControlServer.SaveComment(session.Path, TxtComment.Text);
+            session.Comment = string.IsNullOrWhiteSpace(TxtComment.Text) ? null : TxtComment.Text;
+            LstSessions.Items.Refresh();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            MessageBox.Show(ex.Message, "Comment", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private static bool IsCurrentRecording(SessionSummary s)
+    {
+        string? current = App.Recorder?.GetStatus().CurrentSessionPath;
+        return current != null && string.Equals(Path.GetFullPath(s.Path), Path.GetFullPath(current), StringComparison.OrdinalIgnoreCase);
     }
 
     private void LstSessions_DoubleClick(object sender, MouseButtonEventArgs e)

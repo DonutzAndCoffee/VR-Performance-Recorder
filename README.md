@@ -26,8 +26,8 @@ It works with **OpenXR** games and with native **OpenVR/SteamVR** games. It can 
   - **FPS drop attribution** – shows which background processes were using CPU when FPS dropped
   - Frame-by-frame analysis
 - **Compare sessions** – put up to 3 recordings side by side (A / B / C).
-- **Live in-headset overlay** – shows FPS, frame time, CPU/GPU, resolution and app name. You can set the position and size. *(Direct3D 11 games only)*
-- **SimHub integration** – an included plugin sends live performance data to your SimHub dashboards.
+shows FPS, frame time, CPU/GPU, resolution, VRAM usage and app name.
+- **SimHub integration** – an included plugin sends live performance data to your SimHub dashboards and provides mappable actions (Controls and events), including `XrPerfOverlayToggle`, `XrPerfOverlayShow` and `XrPerfOverlayHide` to show/hide the in-headset overlay.
 - **Controller buttons without SimHub** – assign wheel / button box buttons directly in the app for Start/Stop, Start, Stop and Marker.
 - **OpenXR Toolkit compatible** – opens existing OpenXR Toolkit CSV logs.
 - **Update checker** – tells you when a new version is available on GitHub.
@@ -52,7 +52,7 @@ It works with **OpenXR** games and with native **OpenVR/SteamVR** games. It can 
 
 ## Installation
 
-1. Download the latest release from the [Releases page](https://github.com/DonutzAndCoffee/openXRTK-Graph/releases).
+[Releases page](https://github.com/DonutzAndCoffee/VR-Performance-Recorder/releases)
 2. Unzip it to a folder of your choice (for example `C:\Tools\VR Performance Recorder`).
 3. Start **`VR-Performance-Recorder.exe`**.
 
@@ -88,7 +88,7 @@ Recordings are saved to:
 Click **Open CSV** and pick a session file (or an OpenXR Toolkit log). Use the tabs to switch between the charts.
 
 ### Manage recordings
-Click **Sessions…** (next to the REC indicator) to open the list of all recordings. Double-click a session to open it, select 2–3 sessions and click **Compare selected**, or **Delete selected** to remove sessions including all their files.
+or **Delete selected** to remove sessions including all their files. The list also shows the installed **Pimax Play / Pimax Play Evo** version recorded with each session, and you can select a single session to add or edit a **comment** (click **Save comment**).
 
 ### Compare recordings
 Click **Compare Sessions** and load up to three recordings, e.g. to compare graphics settings or driver versions.
@@ -110,7 +110,7 @@ Turn on **Process logging** in Settings (interval 100–2000 ms). The **FPS Drop
 | OpenXR Perf Layer | Install, enable/disable or uninstall the OpenXR layer |
 | SimHub Plugin | Install or update the SimHub plugin |
 | Controller Buttons | Assign DirectInput buttons (wheel, button box, joystick) to Start/Stop, Start, Stop and Marker – no SimHub needed |
-| VR Overlay | Show FPS, frame time, CPU/GPU, resolution, app name; position (4 corners); size (75 % / 100 % / 140 %) |
+| Show FPS, frame time, CPU/GPU, resolution, VRAM, app name;
 
 ---
 

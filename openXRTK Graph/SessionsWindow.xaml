@@ -19,6 +19,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <StackPanel Orientation="Horizontal">
             <Button Content="Refresh" Click="BtnRefresh_Click"/>
@@ -34,6 +35,8 @@
                     <GridViewColumn Header="App" Width="130" DisplayMemberBinding="{Binding AppName}"/>
                     <GridViewColumn Header="Duration (s)" Width="80" DisplayMemberBinding="{Binding DurationSeconds, StringFormat=F0}"/>
                     <GridViewColumn Header="Avg FPS" Width="70" DisplayMemberBinding="{Binding AverageFps, StringFormat=F1}"/>
+                    <GridViewColumn Header="Pimax Play" Width="140" DisplayMemberBinding="{Binding PimaxPlayVersion}"/>
+                    <GridViewColumn Header="Comment" Width="200" DisplayMemberBinding="{Binding Comment}"/>
                     <GridViewColumn Header="Files" Width="50">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
@@ -44,7 +47,19 @@
                 </GridView>
             </ListView.View>
         </ListView>
-        <TextBlock Grid.Row="2" Text="Double-click opens a session. Ctrl+click 2-3 sessions and press 'Compare selected' to compare them (oldest = A). 'Delete selected' removes the sessions including all their files (CSV, frames, JSON)."
+        <Grid Grid.Row="2" Margin="0,6,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Comment:" VerticalAlignment="Top" Margin="0,3,6,0"/>
+            <TextBox x:Name="TxtComment" Grid.Column="1" IsEnabled="False" AcceptsReturn="True" TextWrapping="Wrap"
+                     MinHeight="24" MaxHeight="80" VerticalScrollBarVisibility="Auto"/>
+            <Button x:Name="BtnSaveComment" Grid.Column="2" Content="Save comment" IsEnabled="False" Margin="6,0,0,0"
+                    VerticalAlignment="Top" Click="BtnSaveComment_Click"/>
+        </Grid>
+        <TextBlock Grid.Row="3" Text="Double-click opens a session. Ctrl+click 2-3 sessions and press 'Compare selected' to compare them (oldest = A). 'Delete selected' removes the sessions including all their files (CSV, frames, JSON). Select a single session to edit its comment."
                    FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
     </Grid>
 </Window>

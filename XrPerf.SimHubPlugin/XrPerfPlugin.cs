@@ -105,6 +105,10 @@ namespace XrPerf.SimHubPlugin
             this.AddAction("XrPerfOpenLastSession", (a, b) => OpenLastSession());
             this.AddAction("XrPerfMarker", (a, b) => AddMarker());
             this.AddAction("XrPerfCompareLastSessions", (a, b) => CompareLastSessions());
+            this.AddAction("XrPerfOverlayToggle", (a, b) => SetOverlayEnabled(!IsOverlayEnabled()));
+            this.AddAction("XrPerfOverlayShow", (a, b) => SetOverlayEnabled(true));
+            this.AddAction("XrPerfOverlayHide", (a, b) => SetOverlayEnabled(false));
+            this.AttachDelegate("XrPerf.OverlayEnabled", () => IsOverlayEnabled());
 
             _pollTimer = new Timer(_ => PollStatus(), null, 0, 1000);
             SimHub.Logging.Current.Info("[XrPerf] Plugin initialized");
@@ -243,6 +247,37 @@ namespace XrPerf.SimHubPlugin
         }
 
         public void SaveSettings() => this.SaveCommonSettings(SettingsKey, Settings);
+
+        private const string OverlayKeyPath = ControlProtocol.AppRegistryKey + @"\Overlay";
+        private const string OverlayEnabledValue = "Enabled";
+
+        /// <summary>Reads the overlay "Enabled" flag the layer polls from the registry.</summary>
+        public static bool IsOverlayEnabled()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(OverlayKeyPath))
+                    return key?.GetValue(OverlayEnabledValue) is int v && v != 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>Shows or hides the in-headset overlay (picked up live by the layer).</summary>
+        public static void SetOverlayEnabled(bool enabled)
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(OverlayKeyPath))
+                    key.SetValue(OverlayEnabledValue, enabled ? 1 : 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch (Exception ex)
+            {
+                SimHub.Logging.Current.Error("[XrPerf] Overlay toggle failed: " + ex.Message);
+            }
+        }
 
         public static string FindAppPath()
         {

@@ -44,6 +44,11 @@ void OverlayD3D11::Initialize(ID3D11Device* device, XrSession session, const Ove
 	}
 	m_device = device;
 	m_device->GetImmediateContext(&m_context);
+	Microsoft::WRL::ComPtr<IDXGIDevice> dxgiDevice;
+	Microsoft::WRL::ComPtr<IDXGIAdapter> adapter;
+	if (SUCCEEDED(m_device.As(&dxgiDevice)) && SUCCEEDED(dxgiDevice->GetAdapter(&adapter))) {
+		adapter.As(&m_adapter);
+	}
 	m_session = session;
 	m_xr = dispatch;
 	m_failed = false;
@@ -52,6 +57,7 @@ void OverlayD3D11::Initialize(ID3D11Device* device, XrSession session, const Ove
 
 void OverlayD3D11::Shutdown() {
 	DestroyResources();
+	m_adapter.Reset();
 	m_context.Reset();
 	m_device.Reset();
 	m_session = XR_NULL_HANDLE;
@@ -110,6 +116,7 @@ void OverlayD3D11::ReloadConfig(int64_t now, int64_t freq) {
 	ReadBool(L"ShowCpu", config.showCpu);
 	ReadBool(L"ShowGpu", config.showGpu);
 	ReadBool(L"ShowResolution", config.showResolution);
+	ReadBool(L"ShowVram", config.showVram);
 	ReadBool(L"ShowApp", config.showApp);
 	ReadDword(L"Position", config.position);
 	ReadDword(L"Scale", config.scalePercent);
@@ -284,6 +291,21 @@ void OverlayD3D11::Render(const OverlayFrameInfo& info) {
 	if (m_config.showResolution && info.width > 0) {
 		Line line{{}, white};
 		std::snprintf(line.text, sizeof(line.text), "Res   %ux%u", info.width, info.height);
+		lines.push_back(line);
+	}
+	if (m_config.showVram) {
+		Line line{{}, white};
+		DXGI_QUERY_VIDEO_MEMORY_INFO mem{};
+		if (m_adapter && SUCCEEDED(m_adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &mem)) &&
+			mem.Budget > 0) {
+			const double usedGb = mem.CurrentUsage / (1024.0 * 1024.0 * 1024.0);
+			const double budgetGb = mem.Budget / (1024.0 * 1024.0 * 1024.0);
+			const double ratio = static_cast<double>(mem.CurrentUsage) / mem.Budget;
+			line.color = ratio <= 0.85 ? green : (ratio <= 1.0 ? orange : red);
+			std::snprintf(line.text, sizeof(line.text), "VRAM  %4.1f / %.1f GB", usedGb, budgetGb);
+		} else {
+			std::snprintf(line.text, sizeof(line.text), "VRAM    n/a");
+		}
 		lines.push_back(line);
 	}
 	if (lines.empty()) {

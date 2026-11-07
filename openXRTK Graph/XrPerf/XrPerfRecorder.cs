@@ -432,6 +432,7 @@ public sealed class SessionFile
 {
     public int FormatVersion { get; set; } = 1;
     public string? Label { get; set; }
+    public string? Comment { get; set; }
     public DateTimeOffset RecordedAt { get; set; }
     public DateTimeOffset? EndedAt { get; set; }
     public double DurationSeconds { get; set; }
@@ -452,6 +453,8 @@ public sealed class SystemInfo
     public string? GpuDriverVersion { get; set; }
     public double VramTotalMb { get; set; }
     public string? OsVersion { get; set; }
+    /// <summary>Installed Pimax Play / Pimax Play Evo, e.g. "Pimax Play 1.40.0.1".</summary>
+    public string? PimaxPlayVersion { get; set; }
 
     public static SystemInfo Collect(double vramTotalMb)
     {
@@ -487,6 +490,85 @@ public sealed class SystemInfo
         }
         catch (System.Security.SecurityException) { }
 
+        info.PimaxPlayVersion = FindPimaxPlay();
         return info;
+    }
+
+    /// <summary>Looks up Pimax Play / Pimax Play Evo in the Windows uninstall registry.</summary>
+    public static string? FindPimaxPlay()
+    {
+        var found = new List<string>();
+        string[] paths =
+        [
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+            @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+        ];
+        foreach (var root in new[] { Microsoft.Win32.Registry.LocalMachine, Microsoft.Win32.Registry.CurrentUser })
+        {
+            foreach (var path in paths)
+            {
+                try
+                {
+                    using var key = root.OpenSubKey(path);
+                    if (key is null) continue;
+                    foreach (var sub in key.GetSubKeyNames())
+                    {
+                        using var app = key.OpenSubKey(sub);
+                        if (app?.GetValue("DisplayName") is not string name) continue;
+                        if (!name.Contains("Pimax", StringComparison.OrdinalIgnoreCase) ||
+                            !name.Contains("Play", StringComparison.OrdinalIgnoreCase)) continue;
+                        // The uninstall entry's DisplayVersion is not updated by in-app updates; prefer the client exe's version.
+                        string? v = GetPimaxClientVersion(app.GetValue("InstallLocation") as string, app.GetValue("DisplayIcon") as string)
+                                    ?? app.GetValue("DisplayVersion") as string;
+                        string entry = v is { Length: > 0 } && !name.Contains(v)
+                            ? $"{name.Trim()} {v.Trim()}" : name.Trim();
+                        if (!found.Contains(entry, StringComparer.OrdinalIgnoreCase)) found.Add(entry);
+                    }
+                }
+                catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or System.IO.IOException) { }
+            }
+        }
+        return found.Count == 0 ? null : string.Join("; ", found);
+    }
+
+    private static string? GetPimaxClientVersion(string? installLocation, string? displayIcon)
+    {
+        var dirs = new List<string>();
+        if (!string.IsNullOrWhiteSpace(installLocation)) dirs.Add(installLocation.Trim().Trim('"'));
+        if (!string.IsNullOrWhiteSpace(displayIcon))
+        {
+            string icon = displayIcon.Split(',')[0].Trim().Trim('"');
+            if (System.IO.Path.GetDirectoryName(icon) is { Length: > 0 } d) dirs.Add(d);
+        }
+        foreach (var dir in dirs)
+        {
+            try
+            {
+                if (!System.IO.Directory.Exists(dir)) continue;
+                string? exe = System.IO.Directory.EnumerateFiles(dir, "PimaxClient.exe", new System.IO.EnumerationOptions
+                    { RecurseSubdirectories = true, MaxRecursionDepth = 3, IgnoreInaccessible = true }).FirstOrDefault();
+                if (exe is null) continue;
+                var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe);
+                string? ver = info.ProductVersion?.Split('+')[0].Trim();
+                if (string.IsNullOrEmpty(ver)) ver = info.FileVersion?.Trim();
+                if (!string.IsNullOrEmpty(ver)) return ver;
+            }
+            catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
+        }
+
+        // Fallback for variants with a different client exe name (e.g. Pimax Play Evo): use the exe the uninstall entry points to.
+        try
+        {
+            string? iconExe = displayIcon?.Split(',')[0].Trim().Trim('"');
+            if (iconExe is { Length: > 0 } && iconExe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(iconExe))
+            {
+                var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(iconExe);
+                string? ver = info.ProductVersion?.Split('+')[0].Trim();
+                if (string.IsNullOrEmpty(ver)) ver = info.FileVersion?.Trim();
+                if (!string.IsNullOrEmpty(ver)) return ver;
+            }
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
+        return null;
     }
 }

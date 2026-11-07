@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include <d3d11.h>
+#include <dxgi1_4.h>
 #include <wrl/client.h>
 
 #include <openxr/openxr.h>
@@ -20,6 +21,7 @@ struct OverlayConfig {
 	bool showCpu = true;
 	bool showGpu = true;
 	bool showResolution = false;
+	bool showVram = false;
 	bool showApp = false;
 	uint32_t position = 0; // 0 = top left, 1 = top right, 2 = bottom left, 3 = bottom right
 	uint32_t scalePercent = 100;
@@ -87,6 +89,7 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D11Device> m_device;
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_context;
+	Microsoft::WRL::ComPtr<IDXGIAdapter3> m_adapter;
 	XrSession m_session = XR_NULL_HANDLE;
 	OverlayDispatch m_xr;
 	OverlayConfig m_config;

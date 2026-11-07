@@ -187,6 +187,18 @@ public sealed class XrPerfControlServer : IDisposable
         return files;
     }
 
+    /// <summary>Stores a user comment in the session's companion JSON (created if missing), preserving all other fields.</summary>
+    public static void SaveComment(string sessionCsvPath, string? comment)
+    {
+        string companion = XrPerfRecorder.GetCompanionPath(sessionCsvPath);
+        var node = File.Exists(companion)
+            ? System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(companion)) as System.Text.Json.Nodes.JsonObject ?? new()
+            : new System.Text.Json.Nodes.JsonObject();
+        if (string.IsNullOrWhiteSpace(comment)) node.Remove("Comment");
+        else node["Comment"] = comment;
+        File.WriteAllText(companion, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+    }
+
     private static SessionSummary ToSummary(FileInfo csv)
     {
         var summary = new SessionSummary
@@ -211,6 +223,8 @@ public sealed class XrPerfControlServer : IDisposable
             summary.DurationSeconds = session.DurationSeconds;
             summary.AverageFps = session.AverageFps;
             summary.Context = session.Context;
+            summary.Comment = session.Comment;
+            summary.PimaxPlayVersion = session.System?.PimaxPlayVersion;
         }
         catch (JsonException) { }
         catch (IOException) { }

@@ -105,6 +105,7 @@
                 <CheckBox x:Name="ChkCpu" Content="CPU frame time (app + runtime)"/>
                 <CheckBox x:Name="ChkGpu" Content="GPU frame time"/>
                 <CheckBox x:Name="ChkResolution" Content="Render resolution"/>
+                <CheckBox x:Name="ChkVram" Content="VRAM usage (game / budget)"/>
                 <CheckBox x:Name="ChkApp" Content="Application name"/>
 
                 <Grid Margin="0,8,0,0">
