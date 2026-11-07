@@ -76,6 +76,12 @@
                                    ActionName="XrPerfPlugin.XrPerfOpenLastSession" Margin="0,0,0,5"/>
                 <ui:ControlsEditor FriendlyName="Compare last two sessions" Width="500" HorizontalAlignment="Left"
                                    ActionName="XrPerfPlugin.XrPerfCompareLastSessions" Margin="0,0,0,5"/>
+                <ui:ControlsEditor FriendlyName="Show / Hide overlay" Width="500" HorizontalAlignment="Left"
+                                   ActionName="XrPerfPlugin.XrPerfOverlayToggle" Margin="0,0,0,5"/>
+                <ui:ControlsEditor FriendlyName="Show overlay" Width="500" HorizontalAlignment="Left"
+                                   ActionName="XrPerfPlugin.XrPerfOverlayShow" Margin="0,0,0,5"/>
+                <ui:ControlsEditor FriendlyName="Hide overlay" Width="500" HorizontalAlignment="Left"
+                                   ActionName="XrPerfPlugin.XrPerfOverlayHide" Margin="0,0,0,5"/>
             </StackPanel>
         </GroupBox>
 
